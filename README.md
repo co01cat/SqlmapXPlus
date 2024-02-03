@@ -2,12 +2,9 @@
 
 **SqlmapXPlus 基于 Sqlmap**，对经典的数据库漏洞利用工具进行二开，参照各种解决方法，增加MSSQL数据库注入的利用方式。
 
-在众多的地区性攻防演练中，SQL Server数据库堆叠注入仍有较高的爆洞频率，但因为一些常见的演练场景限制，如不出网、低权限、站库分离、终端防护、上线困难、权限维持繁琐等，公开的漏洞利用工具难满足我们的需求。
-
 目前已完成部分二开，**包括ole、xpcmdshell两种文件上传、内存马上传、clr安装功能，能够实现mssql注入场景下的自动化注入内存马、自动化提权、自动化添加后门用户、自动化远程文件下载、自动化shellcode加载功能。**
 
-![image](https://github.com/co01cat/SqlmapXPlus/assets/63174234/8c86b1f0-7362-473c-83a5-689d690a0591)
-
+![image-20240204021836227](E:\开发\sqlcat\sqlmap-1.8\README.assets\image-20240204021836227.png)
 
 新增功能：
 
@@ -48,10 +45,14 @@ clr_scloader # 直接shellcode加载
 clr_scloader1 # 落地的shellcode加载
 clr_scloader2 # 落地的shellcode加载
 ```
-References
+
+**公众号&知识星球**：**赛博大作战**
+
+### References
 
 https://github.com/sqlmapproject/sqlmap 
-https://github.com/uknowsec/SharpSQLTools  
-https://github.com/Anion3r/MSSQLProxy  
-https://mp.weixin.qq.com/s/X0cI85DdB17Wve2qzCRDbg   
+
+https://github.com/uknowsec/SharpSQLTools
+https://github.com/Anion3r/MSSQLProxy
+https://mp.weixin.qq.com/s/X0cI85DdB17Wve2qzCRDbg
 https://yzddmr6.com/posts/asp-net-memory-shell-httplistener/
