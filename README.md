@@ -4,7 +4,9 @@
 
 目前已完成部分二开，**包括ole、xpcmdshell两种文件上传、内存马上传、clr安装功能，能够实现mssql注入场景下的自动化注入内存马、自动化提权、自动化添加后门用户、自动化远程文件下载、自动化shellcode加载功能。**
 
-![image-20240204021836227](E:\开发\sqlcat\sqlmap-1.8\README.assets\image-20240204021836227.png)
+![image](https://github.com/co01cat/SqlmapXPlus/assets/63174234/bc0a9553-5d67-4509-aac3-917f4820ff7d)
+
+
 
 新增功能：
 
