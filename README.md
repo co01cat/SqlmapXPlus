@@ -21,7 +21,7 @@
 #  关闭 clr 功能
 --disable-clr
 # 通过 xp_cmdshell 实现的文件上传功能 ，作用为将本地文件上传到远程服务器
---xp-upload localfile remotefile
+--xp-upload localfile --file-dest remotefile
 # 通过 ole 实现的文件上传功能 ，作用为将本地文件上传到远程服务器
 --ole-upload
 #  通过 xp_cmdshell 实现的clr安装方式
