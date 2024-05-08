@@ -396,6 +396,7 @@ class Filesystem(GenericFilesystem):
 
     def oleUpload(self,localFile,remoteFile):
         print('Local File: '+localFile)
+        remoteFile = remoteFile.replace("/", "\\")
         print('Remote File: ' + remoteFile)
         checkFile(localFile)
         s = open(localFile, 'rb').read()
