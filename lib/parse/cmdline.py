@@ -590,27 +590,44 @@ def cmdLineParser(argv=None):
         takeover.add_argument("--disable-clr", dest="disableClr", action="store_true",
                               help="disable clr")
 
+        takeover.add_argument("--enable-ole", dest="enableOle", action="store_true",
+                              help="enable ole")
+
         filesystem.add_argument("--xp-upload ", dest="xpCmdUpload",
-                                help="xpcmdshell local_file_to_read remote_path_to_save")
+                                help=" upload file by xp_cmdshell")
 
         filesystem.add_argument("--ole-upload", dest="oleUpload",
-                                help="ole upload")
+                                help="upload file by ole")
 
-        takeover.add_argument("--install-clr1", dest="xpinstallClr", action="store_true",
-            help="install clr1")
+        filesystem.add_argument("--check-file", dest="xpCheckFile",
+                                help="use xp_fileexis check file exist")
 
+        filesystem.add_argument("--ole-del", dest="oleDelFile",
+                                help="delete file by ole")
 
-        takeover.add_argument("--install-clr2", dest="oleinstallClr", action="store_true",
-                              help="install clr2")
+        filesystem.add_argument("--ole-read", dest="oleReadFile",
+                                help="read file content by ole")
 
+        filesystem.add_argument("--ole-move", dest="oleMoveFile",
+                                help="move file by ole")
+
+        filesystem.add_argument("--ole-copy", dest="oleCopyFile",
+                                help="copy file by ole")
+
+        takeover.add_argument("--check-clr", dest="checkProcedure",
+                                help="check user-defined procedure in the database ")
+
+        takeover.add_argument("--del-clr", dest="delProcedure",
+                              help="delete user-defined procedure in the database ")
+
+        takeover.add_argument("--install-clr", dest="installClrFunction", action="store_true",
+            help="install clr")
 
         takeover.add_argument("--clr-shell", dest="clrShell", action="store_true",
                               help="clr shell")
 
-
         takeover.add_argument("--sharpshell-upload1", dest="clrMemshellUpload1", action="store_true",
                               help="sharpshell upload1")
-
 
         takeover.add_argument("--sharpshell-upload2", dest="clrMemshellUpload2", action="store_true",
                               help="sharpshell upload2")
