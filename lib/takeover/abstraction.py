@@ -139,12 +139,10 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
 
         autoCompletion(AUTOCOMPLETE_TYPE.OS, OS.WINDOWS if Backend.isOs(OS.WINDOWS) else OS.LINUX)
 
-        # 循环
         while True:
             command = None
 
             try:
-                # 结束一个命令执行流程就会回到这里
                 command = _input("os-shell> ")
                 command = getUnicode(command, encoding=sys.stdin.encoding)
             except KeyboardInterrupt:
@@ -165,24 +163,24 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
 
             self.runCmd(command)
 
-    def execClrCmd(self, cmd, silent=False):
+    def execClrCmd(self,function, cmd, silent=False):
         if Backend.isDbms(DBMS.MSSQL):
-            self.clrShellExecCmd(cmd, silent=silent)
+            self.clrShellExecCmd(function,cmd, silent=silent)
         else:
             errMsg = "Feature not yet implemented for the back-end DBMS"
             raise SqlmapUnsupportedFeatureException(errMsg)
 
-    def evalClrCmd(self, cmd, first=None, last=None):
+    def evalClrCmd(self,function, cmd, first=None, last=None):
         retVal = None
         if Backend.isDbms(DBMS.MSSQL):
-            retVal = self.clrShellEvalCmd(cmd, first, last)
+            retVal = self.clrShellEvalCmd(function,cmd, first, last)
         else:
             errMsg = "Feature not yet implemented for the back-end DBMS"
             raise SqlmapUnsupportedFeatureException(errMsg)
 
         return safechardecode(retVal)
 
-    def runClr(self, cmd):
+    def runClr(self,function, cmd):
         choice = None
 
         if not self.alwaysRetrieveCmdOutput:
@@ -194,44 +192,53 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
                 self.alwaysRetrieveCmdOutput = True
 
         if choice == 'Y' or self.alwaysRetrieveCmdOutput:
-            output = self.evalClrCmd(cmd)
+            output = self.evalClrCmd(function,cmd)
 
             if output:
                 conf.dumper.string("command standard output", output)
             else:
                 dataToStdout("No output\n")
         else:
-            self.execClrCmd(cmd)
+            self.execClrCmd(function,cmd)
 
 
-
-    ####################### 新增功能
-    # 安装clr
-    def clrInstall(self,currentDb):
+    def clrInstall(self,currentDb,a,b,c,d):
         try:
             if not self.set_permission(currentDb):
                 logger.error("Set permission error")
                 return
             time.sleep(1)
-            if not self.create_assembly():
+            if not self.create_assembly(a,b):
                 logger.error("Create assembly error")
                 return
             time.sleep(1)
-            if not self.create_procedure():
+            if not self.create_procedure(b,c,d):
                 logger.error("Create procedure error.")
                 return
-            logger.info("Install clr successful!")
+            logger.info("The process has ended, and you can use --check-clr to determine if the installation was successful")
+            logger.info("流程结束，可以使用--check-clr判断是否安装成功")
             self.self_clr = True
         except Exception as e:
             logger.error(e)
             return False
-    # 启用clr
     def clrEnable(self):
         self.enable_clr()
 
+    def oleEnable(self):
+        self.enable_ole()
+
     def clrDisable(self):
         self.disable_clr()
-    # clr命令执行
+
+    def clrDisable(self):
+        self.disable_clr()
+
+    def procedureCheck(self,fuction_name):
+        self.check_procedure(fuction_name)
+
+    def procedureDel(self,fuction_name):
+        self.del_procedure(fuction_name)
+
     def shellClr(self):
         if self.webBackdoorUrl and (not isStackingAvailable() or kb.udfFail):
             infoMsg = "calling OS shell. To quit type "
@@ -264,13 +271,11 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
             logger.info(infoMsg)
 
         autoCompletion(AUTOCOMPLETE_TYPE.OS, OS.WINDOWS if Backend.isOs(OS.WINDOWS) else OS.LINUX)
-
-        # 循环
+        function = _input("input procedure name> ")
         while True:
             command = None
 
             try:
-                # 结束一个命令执行流程就会回到这里
                 command = _input("clr-shell> ")
                 command = getUnicode(command, encoding=sys.stdin.encoding)
             except KeyboardInterrupt:
@@ -289,8 +294,9 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
             if command.lower() in ("x", "q", "exit", "quit"):
                 break
 
-            self.runClr(command)
-            # conf.dbmsHandler.clrReadFile("C:\\windows\\temp\\1.txt")
+            self.runClr(function,command)
+            print('attempting to execute clr stored procedure...')
+            print('正在尝试执行clr存储过程，执行无回显，需要自行判断是否成功')
 
 
     def _initRunAs(self):
