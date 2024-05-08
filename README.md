@@ -19,15 +19,15 @@ sqlmapxplus 基于sqlmap，对经典的数据库漏洞利用工具进行二开�
    修改clr安装流程
    修改clr命令执行方式
    去除中文注释导致的报错
-2. 针对实际网络过程中dll传输损失导致clr安装失败的问题（临时解决方法）
+3. 针对实际网络过程中dll传输损失导致clr安装失败的问题（临时解决方法）
    发现在原--install-clr功能中使用的clr dll太大，在实战中往往需要注入的大量次数，如果注入过程中的某一次出现错误，会导致dll落地失败，无法成功打入dll，现将原本一键自动安装的流程去除，修改为用户需要根据实际的目标情况，自定义的dll安装
    临时增加 --check-file 选项判断dll文件是否成功落地目标主机
    临时增加--check-clr 判断用户自定义函数是否在数据库中加载成功
 
-3. 为什么使用上传过程中会出现dll放大的问题
+4. 为什么使用上传过程中会出现dll放大的问题
    转换为十六进制落地再还原导致的文件增大，如字母 A 经过十六进制 会转换 为 41，增大一倍
 
-4. 自定义clr的问题（已完成）
+5. 自定义clr的问题（已完成）
    install-clr修改为，需要指定自定义的clr.dll路径，在提示框输入 用户自定义类名 用户自定义方法名
    clr_shell模式下执行clr函数的方式修改为： 用户自定义function 传入参数（已完成）
 
@@ -136,7 +136,7 @@ clrshellcodeloader.dl
 
 旧版本的参考链接：https://mp.weixin.qq.com/s/nTYPKnl9XQLWhZ43sQV3xw
 
-新版本的参考链接：待发布
+新版本的参考链接：https://mp.weixin.qq.com/s/6RpxXitEPt8rA1DFb56Oxw
 
 ### References
 
