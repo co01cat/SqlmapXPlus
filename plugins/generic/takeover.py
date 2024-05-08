@@ -56,7 +56,6 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "the back-end DBMS"
             raise SqlmapNotVulnerableException(errMsg)
 
-        self.getRemoteTempPath()
         self.initEnv(web=web)
 
         if not web or (web and self.webBackdoorUrl is not None):
@@ -71,7 +70,7 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-            # mysql的情况下的处理
+
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
@@ -79,26 +78,20 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
 
-        self.getRemoteTempPath()
 
-        # try:
-        #     self.initEnv(web=web)
-        # except SqlmapFilePathException:
-        #     if not web and not conf.direct:
-        #         infoMsg = "falling back to web backdoor method..."
-        #         logger.info(infoMsg)
-        #
-        #         web = True
-        #         kb.udfFail = True
-        #
-        #         self.initEnv(web=web)
-        #     else:
-        #         raise
 
         if not web or (web and self.webBackdoorUrl is not None):
-            self.clrInstall(currentDb)
-        if not conf.osPwn and not conf.cleanup:
-            self.cleanup(web=web)
+            print('Please input remote dll path')
+            a= input("请输入远程目标的dll路径：")
+            print('Please enter the custom CLR assembly name, stored procedure class name, stored procedure function name separately')
+            b,c,d = (input("请分别输入自定义CLR程序集名称 存储过程类名 存储过程函数名：").split())
+            self.clrInstall(currentDb,a,b,c,d)
+
+    def checkProcedure(self,function_name):
+        self.procedureCheck(function_name)
+
+    def delProcedure(self,function_name):
+        self.procedureDel(function_name)
 
     def disableClr(self):
         if isStackingAvailable() or conf.direct:
@@ -106,7 +99,7 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-            # mysql的情况下的处理
+
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
@@ -114,7 +107,6 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
 
-        self.getRemoteTempPath()
 
         try:
             self.initEnv(web=web)
@@ -132,10 +124,27 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
 
         if not web or (web and self.webBackdoorUrl is not None):
             self.clrDisable()
-        if not conf.osPwn and not conf.cleanup:
-            self.cleanup(web=web)
 
     def enableClr(self):
+        if isStackingAvailable() or conf.direct:
+            web = False
+        elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
+            infoMsg = "going to use a web backdoor for command prompt"
+            logger.info(infoMsg)
+            web = True
+        else:
+            errMsg = "unable to prompt for an interactive operating "
+            errMsg += "system shell via the back-end DBMS because "
+            errMsg += "stacked queries SQL injection is not supported"
+            raise SqlmapNotVulnerableException(errMsg)
+
+
+
+        if not web or (web and self.webBackdoorUrl is not None):
+            self.clrEnable()
+
+
+    def enableOle(self):
         if isStackingAvailable() or conf.direct:
             web = False
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
@@ -149,26 +158,11 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
 
-        self.getRemoteTempPath()
-
-        # try:
-        #     self.initEnv(web=web)
-        # except SqlmapFilePathException:
-        #     if not web and not conf.direct:
-        #         infoMsg = "falling back to web backdoor method..."
-        #         logger.info(infoMsg)
-        #
-        #         web = True
-        #         kb.udfFail = True
-        #
-        #         self.initEnv(web=web)
-        #     else:
-        #         raise
 
         if not web or (web and self.webBackdoorUrl is not None):
-            self.clrEnable()
-        if not conf.osPwn and not conf.cleanup:
-            self.cleanup(web=web)
+            self.oleEnable()
+
+
 
     def clrShell(self):
         if isStackingAvailable() or conf.direct:
@@ -176,7 +170,7 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-            # mysql的情况下的处理
+
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
@@ -184,27 +178,8 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
 
-        self.getRemoteTempPath()
-
-        # try:
-        #     self.initEnv(web=web)
-        # except SqlmapFilePathException:
-        #     if not web and not conf.direct:
-        #         infoMsg = "falling back to web backdoor method..."
-        #         logger.info(infoMsg)
-        #
-        #         web = True
-        #         kb.udfFail = True
-        #
-        #         self.initEnv(web=web)
-        #     else:
-        #         raise
-
         if not web or (web and self.webBackdoorUrl is not None):
             self.shellClr()
-
-        if not conf.osPwn and not conf.cleanup:
-            self.cleanup(web=web)
 
 
     def osShell(self):
@@ -213,7 +188,7 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-            # mysql的情况下的处理
+
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
