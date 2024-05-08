@@ -239,15 +239,39 @@ def action():
     if conf.disableClr:
         conf.dbmsHandler.disableClr()
 
-    if conf.xpinstallClr:
-        conf.dbmsHandler.xpCmdUpload("clrdatabase.dll", "c:\\windows\\tasks\\clrdatabase.dll")
+    if conf.installClrFunction:
+        # conf.dbmsHandler.xpCmdUpload("clrdatabase.dll", "c:\\windows\\tasks\\clrdatabase.dll")
         conf.dbmsHandler.enableClr()
         conf.dbmsHandler.installClr(conf.dbmsHandler.getCurrentDb())
 
-    if conf.oleinstallClr:
-        conf.dbmsHandler.oleUpload("clrdatabase.dll")
-        conf.dbmsHandler.enableClr()
-        conf.dbmsHandler.installClr(conf.dbmsHandler.getCurrentDb())
+    if conf.enableOle:
+        conf.dbmsHandler.enableOle()
+
+    if conf.xpCheckFile:
+        print(conf.xpCheckFile)
+        # conf.dbmsHandler.oleUpload("clrdatabase.dll")
+        conf.dbmsHandler.xpCheckFile(conf.xpCheckFile)
+
+    if conf.oleDelFile:
+        conf.dbmsHandler.oleDelFile(conf.oleDelFile)
+
+    if conf.oleReadFile:
+        conf.dbmsHandler.oleReadFile(conf.oleReadFile)
+
+    if conf.checkProcedure:
+        conf.dbmsHandler.checkProcedure(conf.checkProcedure)
+
+    if conf.delProcedure:
+        conf.dbmsHandler.delProcedure(conf.delProcedure)
+
+    if conf.oleUpload:
+        conf.dbmsHandler.oleUpload(conf.oleUpload, conf.fileDest)
+
+    if conf.oleMoveFile:
+        conf.dbmsHandler.oleMoveFile(conf.oleMoveFile, conf.fileDest)
+
+    if conf.oleCopyFile:
+        conf.dbmsHandler.oleCopyFile(conf.oleCopyFile, conf.fileDest)
 
     if conf.clrShell:
         conf.dbmsHandler.clrShell()
@@ -256,10 +280,7 @@ def action():
         conf.dbmsHandler.xpCmdUpload("listen.tmp.txt", "c:\\Windows\\tasks\\listen.tmp.txt")
 
     if conf.clrMemshellUpload2:
-        conf.dbmsHandler.oleUpload("listen.tmp.txt")
-
-    if conf.oleUpload: # 默认都是传到tasks目录下了
-        conf.dbmsHandler.oleUpload(conf.oleUpload)
+        conf.dbmsHandler.oleUpload("listen.tmp.txt", "c:\\Windows\\tasks\\listen.tmp.txt")
 
     # Windows registry options
     if conf.regRead:
