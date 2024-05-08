@@ -54,6 +54,7 @@ Operating system access:
 --sharpshell-upload1  sharpshell upload1
 --sharpshell-upload2  sharpshell upload2 
 ```
+![image](https://github.com/co01cat/SqlmapXPlus/assets/63174234/29f0e265-3f1e-41be-9291-56e5767c6c5a)
 
 ### Usage
 
