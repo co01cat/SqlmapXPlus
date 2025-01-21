@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -128,7 +128,6 @@ from lib.core.settings import SQLMAP_ENVIRONMENT_PREFIX
 from lib.core.settings import SUPPORTED_DBMS
 from lib.core.settings import SUPPORTED_OS
 from lib.core.settings import TIME_DELAY_CANDIDATES
-from lib.core.settings import UNION_CHAR_REGEX
 from lib.core.settings import UNKNOWN_DBMS_VERSION
 from lib.core.settings import URI_INJECTABLE_REGEX
 from lib.core.threads import getCurrentThreadData
@@ -436,7 +435,7 @@ def _setStdinPipeTargets():
             def next(self):
                 try:
                     line = next(conf.stdinPipe)
-                except (IOError, OSError, TypeError):
+                except (IOError, OSError, TypeError, UnicodeDecodeError):
                     line = None
 
                 if line:
@@ -813,6 +812,7 @@ def _setTamperingFunctions():
                 raise SqlmapSyntaxException("cannot import tamper module '%s' (%s)" % (getUnicode(filename[:-3]), getSafeExString(ex)))
 
             priority = PRIORITY.NORMAL if not hasattr(module, "__priority__") else module.__priority__
+            priority = priority if priority is not None else PRIORITY.LOWEST
 
             for name, function in inspect.getmembers(module, inspect.isfunction):
                 if name == "tamper" and (hasattr(inspect, "signature") and all(_ in inspect.signature(function).parameters for _ in ("payload", "kwargs")) or inspect.getargspec(function).args and inspect.getargspec(function).keywords == "kwargs"):
@@ -1361,7 +1361,7 @@ def _setHTTPAuthentication():
             errMsg += "be in format 'DOMAIN\\username:password'"
         elif authType == AUTH_TYPE.PKI:
             errMsg = "HTTP PKI authentication require "
-            errMsg += "usage of option `--auth-pki`"
+            errMsg += "usage of option `--auth-file`"
             raise SqlmapSyntaxException(errMsg)
 
         aCredRegExp = re.search(regExp, conf.authCred)
@@ -2091,6 +2091,7 @@ def _setKnowledgeBaseAttributes(flushAll=True):
     kb.headersFp = {}
     kb.heuristicDbms = None
     kb.heuristicExtendedDbms = None
+    kb.heuristicCode = None
     kb.heuristicMode = False
     kb.heuristicPage = False
     kb.heuristicTest = None
@@ -2881,7 +2882,6 @@ def initOptions(inputOptions=AttribDict(), overrideOptions=False):
     _setKnowledgeBaseAttributes()
     _mergeOptions(inputOptions, overrideOptions)
 
-# 在 init() 函数中通过调用各种函数进行参数的设置、payload 的加载等。
 def init():
     """
     Set attributes into both configuration and knowledge base singletons
@@ -2942,14 +2942,8 @@ def init():
     _setWriteFile()
     _setMetasploit()
     _setDBMSAuthentication()
-    # loadPayloads() 函数与 _loadQueries() 函数大体上也是如此，都是做了解析 xml 文件的工作，
-    # 再将内容保存到 conf 对象的 tests 属性里。
-    # 像 loadPayloads() 函数，最后在 conf.tests 里面可以很清晰的看到 payloads
-    # 加载闭合符集合
     loadBoundaries()
-    # 加载 payload 集合
     loadPayloads()
     _setPrefixSuffix()
     update()
-    # 加载查询语句，在检测到注入点之后后续进行数据库库名字段名爆破会用到的语句
     _loadQueries()

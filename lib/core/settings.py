@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -17,10 +17,9 @@ from lib.core.enums import DBMS
 from lib.core.enums import DBMS_DIRECTORY_NAME
 from lib.core.enums import OS
 from thirdparty import six
-from thirdparty.six import unichr as _unichr
 
 # sqlmap version (<major>.<minor>.<month>.<monthly commit>)
-VERSION = "1.8"
+VERSION = "1.9.1.2"
 TYPE = "dev" if VERSION.count('.') > 2 and VERSION.split('.')[-1] != '0' else "stable"
 TYPE_COLORS = {"dev": 33, "stable": 90, "pip": 34}
 VERSION_STRING = "sqlmap/%s#%s" % ('.'.join(VERSION.split('.')[:-1]) if VERSION.count('.') > 2 and VERSION.split('.')[-1] == '0' else VERSION, TYPE)
@@ -34,7 +33,6 @@ GIT_PAGE = "https://github.com/sqlmapproject/sqlmap"
 WIKI_PAGE = "https://github.com/sqlmapproject/sqlmap/wiki/"
 ZIPBALL_PAGE = "https://github.com/sqlmapproject/sqlmap/zipball/master"
 
-# 打印一些slogon
 # colorful banner
 BANNER = """\033[01;33m\
         ___
@@ -61,6 +59,9 @@ LIVE_COOKIES_TIMEOUT = 120
 # Lower and upper values for match ratio in case of stable page
 LOWER_RATIO_BOUND = 0.02
 UPPER_RATIO_BOUND = 0.98
+
+# For filling in case of dumb push updates
+DUMMY_JUNK = "aiBieg5u"
 
 # Markers for special cases when parameter values contain html encoded characters
 PARAMETER_AMP_MARKER = "__AMP__"
@@ -334,7 +335,7 @@ REFERER_ALIASES = ("ref", "referer", "referrer")
 HOST_ALIASES = ("host",)
 
 # DBMSes with upper case identifiers
-UPPER_CASE_DBMSES = set((DBMS.ORACLE, DBMS.DB2, DBMS.FIREBIRD, DBMS.MAXDB, DBMS.H2, DBMS.DERBY, DBMS.ALTIBASE))
+UPPER_CASE_DBMSES = set((DBMS.ORACLE, DBMS.DB2, DBMS.FIREBIRD, DBMS.MAXDB, DBMS.H2, DBMS.HSQLDB, DBMS.DERBY, DBMS.ALTIBASE))
 
 # Default schemas to use (when unable to enumerate)
 H2_DEFAULT_SCHEMA = HSQLDB_DEFAULT_SCHEMA = "PUBLIC"
@@ -444,7 +445,7 @@ COMMON_PASSWORD_SUFFIXES += ("!", ".", "*", "!!", "?", ";", "..", "!!!", ", ", "
 WEBSCARAB_SPLITTER = "### Conversation"
 
 # Splitter used between requests in BURP log files
-BURP_REQUEST_REGEX = r"={10,}\s+([A-Z]{3,} .+?)\s+={10,}"
+BURP_REQUEST_REGEX = r"={10,}\s+([A-Z]{3,} .+?)\s+(={10,}|\Z)"
 
 # Regex used for parsing XML Burp saved history items
 BURP_XML_HISTORY_REGEX = r'<port>(\d+)</port>.*?<request base64="true"><!\[CDATA\[([^]]+)'
@@ -462,7 +463,7 @@ URI_INJECTABLE_REGEX = r"//[^/]*/([^\.*?]+)\Z"
 SENSITIVE_DATA_REGEX = r"(\s|=)(?P<result>[^\s=]*\b%s\b[^\s]*)\s"
 
 # Options to explicitly mask in anonymous (unhandled exception) reports (along with anything carrying the <hostname> inside)
-SENSITIVE_OPTIONS = ("hostname", "answers", "data", "dnsDomain", "googleDork", "authCred", "proxyCred", "tbl", "db", "col", "user", "cookie", "proxy", "fileRead", "fileWrite", "fileDest", "testParameter", "authCred", "sqlQuery", "requestFile")
+SENSITIVE_OPTIONS = ("hostname", "answers", "data", "dnsDomain", "googleDork", "authCred", "proxyCred", "tbl", "db", "col", "user", "cookie", "proxy", "fileRead", "fileWrite", "fileDest", "testParameter", "authCred", "sqlQuery", "requestFile", "csrfToken", "csrfData", "csrfUrl", "testParameter")
 
 # Maximum number of threads (avoiding connection issues and/or DoS)
 MAX_NUMBER_OF_THREADS = 10
@@ -545,8 +546,8 @@ IGNORE_PARAMETERS = ("__VIEWSTATE", "__VIEWSTATEENCRYPTED", "__VIEWSTATEGENERATO
 # Regular expression used for recognition of ASP.NET control parameters
 ASP_NET_CONTROL_REGEX = r"(?i)\Actl\d+\$"
 
-# Prefix for Google analytics cookie names
-GOOGLE_ANALYTICS_COOKIE_PREFIX = "__UTM"
+# Regex for Google analytics cookie names
+GOOGLE_ANALYTICS_COOKIE_REGEX = r"(?i)\A(__utm|_ga|_gid|_gat|_gcl_au)"
 
 # Prefix for configuration overriding environment variables
 SQLMAP_ENVIRONMENT_PREFIX = "SQLMAP_"
@@ -684,14 +685,11 @@ MAX_REVALIDATION_STEPS = 5
 # Characters that can be used to split parameter values in provided command line (e.g. in --tamper)
 PARAMETER_SPLITTING_REGEX = r"[,|;]"
 
-# Regular expression describing possible union char value (e.g. used in --union-char)
-UNION_CHAR_REGEX = r"\A\w+\Z"
-
 # Attribute used for storing original parameter value in special cases (e.g. POST)
 UNENCODED_ORIGINAL_VALUE = "original"
 
 # Common column names containing usernames (used for hash cracking in some cases)
-COMMON_USER_COLUMNS = ("login", "user", "username", "user_name", "user_login", "benutzername", "benutzer", "utilisateur", "usager", "consommateur", "utente", "utilizzatore", "utilizator", "utilizador", "usufrutuario", "korisnik", "uporabnik", "usuario", "consumidor", "client", "cuser")
+COMMON_USER_COLUMNS = ("login", "user", "username", "user_name", "user_login", "account", "account_name", "benutzername", "benutzer", "utilisateur", "usager", "consommateur", "utente", "utilizzatore", "utilizator", "utilizador", "usufrutuario", "korisnik", "uporabnik", "usuario", "consumidor", "client", "customer", "cuser")
 
 # Default delimiter in GET/POST values
 DEFAULT_GET_POST_DELIMITER = '&'
@@ -703,7 +701,7 @@ DEFAULT_COOKIE_DELIMITER = ';'
 FORCE_COOKIE_EXPIRATION_TIME = "9999999999"
 
 # Github OAuth token used for creating an automatic Issue for unhandled exceptions
-GITHUB_REPORT_OAUTH_TOKEN = "Z2hwX09GTWlsWUJVZWhiYWluS3I3T2hUbE9abHJ4cXNUTTFYeUxxTw"
+GITHUB_REPORT_OAUTH_TOKEN = "Z2hwX0pNd0I2U25kN2Q5QmxlWkhxZmkxVXZTSHZiTlRDWjE5NUNpNA"
 
 # Skip unforced HashDB flush requests below the threshold number of cached items
 HASHDB_FLUSH_THRESHOLD = 32
@@ -799,7 +797,7 @@ BOLD_PATTERNS = ("' injectable", "provided empty", "leftover chars", "might be i
 RANDOMIZATION_TLDS = ("com", "net", "ru", "org", "de", "uk", "br", "jp", "cn", "fr", "it", "pl", "tv", "edu", "in", "ir", "es", "me", "info", "gr", "gov", "ca", "co", "se", "cz", "to", "vn", "nl", "cc", "az", "hu", "ua", "be", "no", "biz", "io", "ch", "ro", "sk", "eu", "us", "tw", "pt", "fi", "at", "lt", "kz", "cl", "hr", "pk", "lv", "la", "pe", "au")
 
 # Generic www root directory names
-GENERIC_DOC_ROOT_DIRECTORY_NAMES = ("htdocs", "httpdocs", "public", "wwwroot", "www")
+GENERIC_DOC_ROOT_DIRECTORY_NAMES = ("htdocs", "httpdocs", "public", "public_html", "wwwroot", "www", "site")
 
 # Maximum length of a help part containing switch/option name(s)
 MAX_HELP_OPTION_LENGTH = 18
@@ -808,7 +806,7 @@ MAX_HELP_OPTION_LENGTH = 18
 MAX_CONNECT_RETRIES = 100
 
 # Strings for detecting formatting errors
-FORMAT_EXCEPTION_STRINGS = ("Type mismatch", "Error converting", "Please enter a", "Conversion failed", "String or binary data would be truncated", "Failed to convert", "unable to interpret text value", "Input string was not in a correct format", "System.FormatException", "java.lang.NumberFormatException", "ValueError: invalid literal", "TypeMismatchException", "CF_SQL_INTEGER", "CF_SQL_NUMERIC", " for CFSQLTYPE ", "cfqueryparam cfsqltype", "InvalidParamTypeException", "Invalid parameter type", "Attribute validation error for tag", "is not of type numeric", "<cfif Not IsNumeric(", "invalid input syntax for integer", "invalid input syntax for type", "invalid number", "character to number conversion error", "unable to interpret text value", "String was not recognized as a valid", "Convert.ToInt", "cannot be converted to a ", "InvalidDataException", "Arguments are of the wrong type")
+FORMAT_EXCEPTION_STRINGS = ("Type mismatch", "Error converting", "Please enter a", "Conversion failed", "String or binary data would be truncated", "Failed to convert", "unable to interpret text value", "Input string was not in a correct format", "System.FormatException", "java.lang.NumberFormatException", "ValueError: invalid literal", "TypeMismatchException", "CF_SQL_INTEGER", "CF_SQL_NUMERIC", " for CFSQLTYPE ", "cfqueryparam cfsqltype", "InvalidParamTypeException", "Invalid parameter type", "Attribute validation error for tag", "is not of type numeric", "<cfif Not IsNumeric(", "invalid input syntax for integer", "invalid input syntax for type", "invalid number", "character to number conversion error", "unable to interpret text value", "String was not recognized as a valid", "Convert.ToInt", "cannot be converted to a ", "InvalidDataException", "Arguments are of the wrong type", "Invalid conversion")
 
 # Regular expression used for extracting ASP.NET view state values
 VIEWSTATE_REGEX = r'(?i)(?P<name>__VIEWSTATE[^"]*)[^>]+value="(?P<result>[^"]+)'
@@ -960,12 +958,3 @@ for key, value in os.environ.items():
                 globals()[_] = [__.strip() for __ in _.split(',')]
             else:
                 globals()[_] = value
-
-# Installing "reversible" unicode (decoding) error handler
-def _reversible(ex):
-    if INVALID_UNICODE_PRIVATE_AREA:
-        return (u"".join(_unichr(int('000f00%2x' % (_ if isinstance(_, int) else ord(_)), 16)) for _ in ex.object[ex.start:ex.end]), ex.end)
-    else:
-        return (u"".join(INVALID_UNICODE_CHAR_FORMAT % (_ if isinstance(_, int) else ord(_)) for _ in ex.object[ex.start:ex.end]), ex.end)
-
-codecs.register_error("reversible", _reversible)

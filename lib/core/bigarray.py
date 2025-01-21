@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -65,6 +65,8 @@ class BigArray(list):
     >>> _ = _ + [1]
     >>> _[-1]
     1
+    >>> len([_ for _ in BigArray(xrange(100000))])
+    100000
     """
 
     def __init__(self, items=None):
@@ -198,7 +200,10 @@ class BigArray(list):
 
     def __iter__(self):
         for i in xrange(len(self)):
-            yield self[i]
+            try:
+                yield self[i]
+            except IndexError:
+                break
 
     def __len__(self):
         return len(self.chunks[-1]) if len(self.chunks) == 1 else (len(self.chunks) - 1) * self.chunk_length + len(self.chunks[-1])

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -226,7 +226,8 @@ def _setRequestParams():
                 if not (kb.processUserMarks and kb.customInjectionMark in conf.data):
                     conf.data = getattr(conf.data, UNENCODED_ORIGINAL_VALUE, conf.data)
                     conf.data = conf.data.replace(kb.customInjectionMark, ASTERISK_MARKER)
-                    conf.data = re.sub(r"(?si)((Content-Disposition[^\n]+?name\s*=\s*[\"']?(?P<name>[^\"'\r\n]+)[\"']?).+?)((%s)+--)" % ("\r\n" if "\r\n" in conf.data else '\n'), functools.partial(process, repl=r"\g<1>%s\g<4>" % kb.customInjectionMark), conf.data)
+                    conf.data = re.sub(r"(?si)(Content-Disposition:[^\n]+\s+name=\"(?P<name>[^\"]+)\"(?:[^f|^b]|f(?!ilename=)|b(?!oundary=))*?)((%s)--)" % ("\r\n" if "\r\n" in conf.data else '\n'),
+                                        functools.partial(process, repl=r"\g<1>%s\g<3>" % kb.customInjectionMark), conf.data)
 
         if not kb.postHint:
             if kb.customInjectionMark in conf.data:  # later processed
@@ -464,7 +465,6 @@ def _resumeHashDBValues():
     kb.brute.columns = hashDBRetrieve(HASHDB_KEYS.KB_BRUTE_COLUMNS, True) or kb.brute.columns
     kb.chars = hashDBRetrieve(HASHDB_KEYS.KB_CHARS, True) or kb.chars
     kb.dynamicMarkings = hashDBRetrieve(HASHDB_KEYS.KB_DYNAMIC_MARKINGS, True) or kb.dynamicMarkings
-    # 这里获取了存储的标志位
     kb.xpCmdshellAvailable = hashDBRetrieve(HASHDB_KEYS.KB_XP_CMDSHELL_AVAILABLE) or kb.xpCmdshellAvailable
 
     kb.errorChunkLength = hashDBRetrieve(HASHDB_KEYS.KB_ERROR_CHUNK_LENGTH)
@@ -767,7 +767,7 @@ def setupTargetEnv():
     _createTargetDirs()
     _setRequestParams()
     _setHashDB()
-    _resumeHashDBValues() # 存储 hashdb值并生成payload
+    _resumeHashDBValues()
     _setResultsFile()
     _setAuthCred()
     _setAuxOptions()

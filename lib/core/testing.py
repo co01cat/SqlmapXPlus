@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -74,7 +74,7 @@ def vulnTest():
         ("-u \"<url>&echo=foobar*\" --flush-session", ("might be vulnerable to cross-site scripting",)),
         ("-u \"<url>&query=*\" --flush-session --technique=Q --banner", ("Title: SQLite inline queries", "banner: '3.")),
         ("-d \"<direct>\" --flush-session --dump -T users --dump-format=SQLITE --binary-fields=name --where \"id=3\"", ("7775", "179ad45c6ce2cb97cf1029e212046e81 (testpass)", "dumped to SQLITE database")),
-        ("-d \"<direct>\" --flush-session --banner --schema --sql-query=\"UPDATE users SET name='foobar' WHERE id=5; SELECT * FROM users; SELECT 987654321\"", ("banner: '3.", "INTEGER", "TEXT", "id", "name", "surname", "5, foobar, nameisnull", "'987654321'",)),
+        ("-d \"<direct>\" --flush-session --banner --schema --sql-query=\"UPDATE users SET name='foobar' WHERE id=5; SELECT * FROM users; SELECT 987654321\"", ("banner: '3.", "INTEGER", "TEXT", "id", "name", "surname", "5,foobar,nameisnull", "'987654321'",)),
         ("--purge -v 3", ("~ERROR", "~CRITICAL", "deleting the whole directory tree")),
     )
 
@@ -162,7 +162,9 @@ def vulnTest():
     direct = "sqlite3://%s" % database
     tmpdir = tempfile.mkdtemp()
 
-    content = open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sqlmap.conf"))).read().replace("url =", "url = %s" % url)
+    with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sqlmap.conf"))) as f:
+        content = f.read().replace("url =", "url = %s" % url)
+
     with open(config, "w+") as f:
         f.write(content)
         f.flush()
@@ -214,7 +216,9 @@ def smokeTest():
 
     unisonRandom()
 
-    content = open(paths.ERRORS_XML, "r").read()
+    with open(paths.ERRORS_XML, "r") as f:
+        content = f.read()
+
     for regex in re.findall(r'<error regexp="(.+?)"/>', content):
         try:
             re.compile(regex)

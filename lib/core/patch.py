@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
 import codecs
 import collections
 import inspect
+import logging
 import os
 import random
 import re
@@ -37,9 +38,12 @@ from lib.core.data import conf
 from lib.core.enums import PLACE
 from lib.core.option import _setHTTPHandlers
 from lib.core.option import setVerbosity
+from lib.core.settings import INVALID_UNICODE_PRIVATE_AREA
+from lib.core.settings import INVALID_UNICODE_CHAR_FORMAT
 from lib.core.settings import IS_WIN
 from lib.request.templates import getPageTemplate
 from thirdparty import six
+from thirdparty.six import unichr as _unichr
 from thirdparty.six.moves import http_client as _http_client
 
 _rand = 0
@@ -48,9 +52,9 @@ def dirtyPatches():
     """
     Place for "dirty" Python related patches
     """
-    #  将HTTP客户端的最大行长度设置为1MB，以支持接收非常长的结果行（例如，HTTP头响应中的SQLi结果）。
+
     # accept overly long result lines (e.g. SQLi results in HTTP header responses)
-    _http_client._MAXLINE = 1 * 1024 * 1024 #
+    _http_client._MAXLINE = 1 * 1024 * 1024
 
     # prevent double chunked encoding in case of sqlmap chunking (Note: Python3 does it automatically if 'Content-length' is missing)
     if six.PY3:
@@ -61,7 +65,7 @@ def dirtyPatches():
             if conf.get("chunked") and "encode_chunked" in kwargs:
                 kwargs["encode_chunked"] = False
             self.__send_output(*args, **kwargs)
-        # 重新定义HTTP连接的`_send_output`方法，以防止在sqlmap分块的情况下进行双重分块编码。
+
         _http_client.HTTPConnection._send_output = _send_output
 
     # add support for inet_pton() on Windows OS
@@ -86,7 +90,7 @@ def dirtyPatches():
     if match and match.group(1).upper() != PLACE.POST:
         PLACE.CUSTOM_POST = PLACE.CUSTOM_POST.replace("POST", "%s (body)" % match.group(1))
 
-    # https://github.com/sqlmapproject/sqlmap/issues/4314
+    # Reference: https://github.com/sqlmapproject/sqlmap/issues/4314
     try:
         os.urandom(1)
     except NotImplementedError:
@@ -94,6 +98,14 @@ def dirtyPatches():
             os.urandom = lambda size: bytes(random.randint(0, 255) for _ in range(size))
         else:
             os.urandom = lambda size: "".join(chr(random.randint(0, 255)) for _ in xrange(size))
+
+    # Reference: https://github.com/sqlmapproject/sqlmap/issues/5727
+    # Reference: https://stackoverflow.com/a/14076841
+    try:
+        import pymysql
+        pymysql.install_as_MySQLdb()
+    except (ImportError, AttributeError):
+        pass
 
     # Reference: https://github.com/bottlepy/bottle/blob/df67999584a0e51ec5b691146c7fa4f3c87f5aac/bottle.py
     # Reference: https://python.readthedocs.io/en/v2.7.2/library/inspect.html#inspect.getargspec
@@ -114,6 +126,30 @@ def dirtyPatches():
             return ArgSpec(kwargs, spec[1], spec[2], spec[3])
 
         inspect.getargspec = getargspec
+
+    # Installing "reversible" unicode (decoding) error handler
+    def _reversible(ex):
+        if INVALID_UNICODE_PRIVATE_AREA:
+            return (u"".join(_unichr(int('000f00%2x' % (_ if isinstance(_, int) else ord(_)), 16)) for _ in ex.object[ex.start:ex.end]), ex.end)
+        else:
+            return (u"".join(INVALID_UNICODE_CHAR_FORMAT % (_ if isinstance(_, int) else ord(_)) for _ in ex.object[ex.start:ex.end]), ex.end)
+
+    codecs.register_error("reversible", _reversible)
+
+    # Reference: https://github.com/sqlmapproject/sqlmap/issues/5731
+    if not hasattr(logging, "_acquireLock"):
+        def _acquireLock():
+            if logging._lock:
+                logging._lock.acquire()
+
+        logging._acquireLock = _acquireLock
+
+    if not hasattr(logging, "_releaseLock"):
+        def _releaseLock():
+            if logging._lock:
+                logging._lock.release()
+
+        logging._releaseLock = _releaseLock
 
 def resolveCrossReferences():
     """
