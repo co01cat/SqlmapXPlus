@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -211,80 +211,6 @@ class Filesystem(object):
         errMsg += "into the specific DBMS plugin"
         raise SqlmapUndefinedMethod(errMsg)
 
-    def clrReadFile(self, remoteFile):
-        localFilePaths = []
-
-        self.checkDbmsOs()
-
-        for remoteFile in remoteFile.split(','):
-            fileContent = None
-            kb.fileReadMode = True
-
-            if conf.direct or isStackingAvailable():
-                if isStackingAvailable():
-                    debugMsg = "going to try to read the file with stacked query SQL "
-                    debugMsg += "injection technique"
-                    logger.debug(debugMsg)
-
-                fileContent = self.clrStackedReadFile(remoteFile)
-            elif Backend.isDbms(DBMS.MYSQL):
-                debugMsg = "going to try to read the file with non-stacked query "
-                debugMsg += "SQL injection technique"
-                logger.debug(debugMsg)
-
-                fileContent = self.nonStackedReadFile(remoteFile)
-            else:
-                errMsg = "none of the SQL injection techniques detected can "
-                errMsg += "be used to read files from the underlying file "
-                errMsg += "system of the back-end %s server" % Backend.getDbms()
-                logger.error(errMsg)
-
-                fileContent = None
-
-            kb.fileReadMode = False
-
-            if fileContent in (None, "") and not Backend.isDbms(DBMS.PGSQL):
-                self.cleanup(onlyFileTbl=True)
-            elif isListLike(fileContent):
-                newFileContent = ""
-
-                for chunk in fileContent:
-                    if isListLike(chunk):
-                        if len(chunk) > 0:
-                            chunk = chunk[0]
-                        else:
-                            chunk = ""
-
-                    if chunk:
-                        newFileContent += chunk
-
-                fileContent = newFileContent
-
-            if fileContent is not None:
-                fileContent = decodeDbmsHexValue(fileContent, True)
-                ##### 打印结果
-
-                if fileContent.strip():
-                    # localFilePath = dataToOutFile(remoteFile, fileContent)
-                    print("clr执行结果：" + str(fileContent))
-                    if not Backend.isDbms(DBMS.PGSQL):
-                        self.cleanup(onlyFileTbl=True)
-
-                    # sameFile = self.askCheckReadFile(localFilePath, remoteFile)
-                    #
-                    # if sameFile is True:
-                    #     localFilePath += " (same file)"
-                    # elif sameFile is False:
-                    #     localFilePath += " (size differs from remote file)"
-
-                    # localFilePaths.append(localFilePath)
-                elif not kb.bruteMode:
-                    errMsg = "no data retrieved"
-                    logger.error(errMsg)
-
-        return localFilePaths
-
-
     def readFile(self, remoteFile):
         localFilePaths = []
 
@@ -339,6 +265,7 @@ class Filesystem(object):
 
                 if fileContent.strip():
                     localFilePath = dataToOutFile(remoteFile, fileContent)
+
                     if not Backend.isDbms(DBMS.PGSQL):
                         self.cleanup(onlyFileTbl=True)
 

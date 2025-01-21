@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -13,7 +13,10 @@ import sys
 from lib.core.common import Backend
 from lib.core.common import dataToStdout
 from lib.core.common import getSQLSnippet
+from lib.core.common import isListLike
 from lib.core.common import isStackingAvailable
+from lib.core.common import joinValue
+from lib.core.compat import xrange
 from lib.core.convert import getUnicode
 from lib.core.data import conf
 from lib.core.data import logger
@@ -41,6 +44,7 @@ class Custom(object):
         sqlType = None
         query = query.rstrip(';')
 
+
         try:
             for sqlTitle, sqlStatements in SQL_STATEMENTS.items():
                 for sqlStatement in sqlStatements:
@@ -60,6 +64,11 @@ class Custom(object):
                 query = re.sub(r"(?i)\w+%s\.?" % METADB_SUFFIX, "", query)
 
                 output = inject.getValue(query, fromUser=True)
+
+                if sqlType and "SELECT" in sqlType and isListLike(output):
+                    for i in xrange(len(output)):
+                        if isListLike(output[i]):
+                            output[i] = joinValue(output[i])
 
                 return output
             elif not isStackingAvailable() and not conf.direct:
@@ -98,6 +107,10 @@ class Custom(object):
                 query = _input("sql-shell> ")
                 query = getUnicode(query, encoding=sys.stdin.encoding)
                 query = query.strip("; ")
+            except UnicodeDecodeError:
+                print()
+                errMsg = "invalid user input"
+                logger.error(errMsg)
             except KeyboardInterrupt:
                 print()
                 errMsg = "user aborted"
