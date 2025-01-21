@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -94,8 +94,6 @@ from lib.core.shell import loadHistory
 from lib.core.shell import saveHistory
 from thirdparty.six.moves import input as _input
 
-
-# 参数解析
 def cmdLineParser(argv=None):
     """
     This function parses the command line parameters and arguments
@@ -593,8 +591,11 @@ def cmdLineParser(argv=None):
         takeover.add_argument("--enable-ole", dest="enableOle", action="store_true",
                               help="enable ole")
 
+        takeover.add_argument("--to-sa", dest="toSa", action="store_true",
+                              help="current db to sa")
+
         filesystem.add_argument("--xp-upload ", dest="xpCmdUpload",
-                                help=" upload file by xp_cmdshell")
+                                help="upload file by xp_cmdshell")
 
         filesystem.add_argument("--ole-upload", dest="oleUpload",
                                 help="upload file by ole")
@@ -614,14 +615,17 @@ def cmdLineParser(argv=None):
         filesystem.add_argument("--ole-copy", dest="oleCopyFile",
                                 help="copy file by ole")
 
-        takeover.add_argument("--check-clr", dest="checkProcedure",
-                                help="check user-defined procedure in the database ")
+        takeover.add_argument("--check-clr", dest="checkProcedure", action="store_true",
+                              help="check user-defined procedure in the database ")
 
-        takeover.add_argument("--del-clr", dest="delProcedure",
-                              help="delete user-defined procedure in the database ")
+        takeover.add_argument("--del-clr", dest="delClr", action="store_true",
+                              help="delete user-defined procedure and assembly in the database ")
 
-        takeover.add_argument("--install-clr", dest="installClrFunction", action="store_true",
-            help="install clr")
+        takeover.add_argument("--install-clr1", dest="installClrFunction1", action="store_true",
+                              help="install clr1")
+
+        takeover.add_argument("--install-clr2", dest="installClrFunction2", action="store_true",
+                              help="install clr2")
 
         takeover.add_argument("--clr-shell", dest="clrShell", action="store_true",
                               help="clr shell")
@@ -789,6 +793,9 @@ def cmdLineParser(argv=None):
         general.add_argument("--time-limit", dest="timeLimit", type=float,
             help="Run with a time limit in seconds (e.g. 3600)")
 
+        general.add_argument("--unsafe-naming", dest="unsafeNaming", action="store_true",
+            help="Disable escaping of DBMS identifiers (e.g. \"user\")")
+
         general.add_argument("--web-root", dest="webRoot",
             help="Web server document root directory (e.g. \"/var/www\")")
 
@@ -809,6 +816,9 @@ def cmdLineParser(argv=None):
 
         miscellaneous.add_argument("--disable-coloring", dest="disableColoring", action="store_true",
             help="Disable console output coloring")
+
+        miscellaneous.add_argument("--disable-hashing", dest="disableHashing", action="store_true",
+            help="Disable hash analysis on table dumps")
 
         miscellaneous.add_argument("--list-tampers", dest="listTampers", action="store_true",
             help="Display list of available tamper scripts")
