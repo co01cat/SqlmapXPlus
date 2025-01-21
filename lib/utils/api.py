@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -122,9 +122,9 @@ class Database(object):
             return self.cursor.fetchall()
 
     def init(self):
-        self.execute("CREATE TABLE logs(id INTEGER PRIMARY KEY AUTOINCREMENT, taskid INTEGER, time TEXT, level TEXT, message TEXT)")
-        self.execute("CREATE TABLE data(id INTEGER PRIMARY KEY AUTOINCREMENT, taskid INTEGER, status INTEGER, content_type INTEGER, value TEXT)")
-        self.execute("CREATE TABLE errors(id INTEGER PRIMARY KEY AUTOINCREMENT, taskid INTEGER, error TEXT)")
+        self.execute("CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY AUTOINCREMENT, taskid INTEGER, time TEXT, level TEXT, message TEXT)")
+        self.execute("CREATE TABLE IF NOT EXISTS data(id INTEGER PRIMARY KEY AUTOINCREMENT, taskid INTEGER, status INTEGER, content_type INTEGER, value TEXT)")
+        self.execute("CREATE TABLE IF NOT EXISTS errors(id INTEGER PRIMARY KEY AUTOINCREMENT, taskid INTEGER, error TEXT)")
 
 class Task(object):
     def __init__(self, taskid, remote_addr):
@@ -276,7 +276,7 @@ class LogRecorder(logging.StreamHandler):
         Record emitted events to IPC database for asynchronous I/O
         communication with the parent process
         """
-        conf.databaseCursor.execute("INSERT INTO logs VALUES(NULL, ?, ?, ?, ?)", (conf.taskid, time.strftime("%X"), record.levelname, record.msg % record.args if record.args else record.msg))
+        conf.databaseCursor.execute("INSERT INTO logs VALUES(NULL, ?, ?, ?, ?)", (conf.taskid, time.strftime("%X"), record.levelname, str(record.msg % record.args if record.args else record.msg)))
 
 def setRestAPILog():
     if conf.api:
@@ -680,7 +680,7 @@ def version(token=None):
     logger.debug("Fetched version (%s)" % ("admin" if is_admin(token) else request.remote_addr))
     return jsonize({"success": True, "version": VERSION_STRING.split('/')[-1]})
 
-def server(host=RESTAPI_DEFAULT_ADDRESS, port=RESTAPI_DEFAULT_PORT, adapter=RESTAPI_DEFAULT_ADAPTER, username=None, password=None):
+def server(host=RESTAPI_DEFAULT_ADDRESS, port=RESTAPI_DEFAULT_PORT, adapter=RESTAPI_DEFAULT_ADAPTER, username=None, password=None, database=None):
     """
     REST-JSON API server
     """
@@ -689,8 +689,11 @@ def server(host=RESTAPI_DEFAULT_ADDRESS, port=RESTAPI_DEFAULT_PORT, adapter=REST
     DataStore.username = username
     DataStore.password = password
 
-    _, Database.filepath = tempfile.mkstemp(prefix=MKSTEMP_PREFIX.IPC, text=False)
-    os.close(_)
+    if not database:
+        _, Database.filepath = tempfile.mkstemp(prefix=MKSTEMP_PREFIX.IPC, text=False)
+        os.close(_)
+    else:
+        Database.filepath = database
 
     if port == 0:  # random
         with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
