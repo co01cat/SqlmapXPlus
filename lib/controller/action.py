@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -205,7 +205,6 @@ def action():
     if conf.fileWrite:
         conf.dbmsHandler.writeFile(conf.fileWrite, conf.fileDest, conf.fileWriteType)
 
-
     if conf.commonFiles:
         try:
             conf.dumper.rFile(fileExists(paths.COMMON_FILES))
@@ -229,7 +228,6 @@ def action():
 
     if conf.osBof:
         conf.dbmsHandler.osBof()
-
     if conf.xpCmdUpload:
         conf.dbmsHandler.xpCmdUpload(conf.xpCmdUpload, conf.fileDest)
 
@@ -239,17 +237,20 @@ def action():
     if conf.disableClr:
         conf.dbmsHandler.disableClr()
 
-    if conf.installClrFunction:
-        # conf.dbmsHandler.xpCmdUpload("clrdatabase.dll", "c:\\windows\\tasks\\clrdatabase.dll")
-        conf.dbmsHandler.enableClr()
-        conf.dbmsHandler.installClr(conf.dbmsHandler.getCurrentDb())
+    if conf.installClrFunction1:
+        conf.dbmsHandler.installClr1(conf.dbmsHandler.getCurrentDb())
+
+    if conf.installClrFunction2:
+        conf.dbmsHandler.installClr2(conf.dbmsHandler.getCurrentDb())
 
     if conf.enableOle:
         conf.dbmsHandler.enableOle()
 
+    if conf.toSa:
+        conf.dbmsHandler.toSa(conf.dbmsHandler.getCurrentDb())
+
     if conf.xpCheckFile:
         print(conf.xpCheckFile)
-        # conf.dbmsHandler.oleUpload("clrdatabase.dll")
         conf.dbmsHandler.xpCheckFile(conf.xpCheckFile)
 
     if conf.oleDelFile:
@@ -259,10 +260,10 @@ def action():
         conf.dbmsHandler.oleReadFile(conf.oleReadFile)
 
     if conf.checkProcedure:
-        conf.dbmsHandler.checkProcedure(conf.checkProcedure)
+        conf.dbmsHandler.checkProcedure()
 
-    if conf.delProcedure:
-        conf.dbmsHandler.delProcedure(conf.delProcedure)
+    if conf.delClr:
+        conf.dbmsHandler.delClr()
 
     if conf.oleUpload:
         conf.dbmsHandler.oleUpload(conf.oleUpload, conf.fileDest)
@@ -298,4 +299,3 @@ def action():
 
     if conf.direct:
         conf.dbmsConnector.close()
-
