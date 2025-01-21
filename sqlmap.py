@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -50,8 +50,8 @@ try:
     from lib.core.data import logger
 
     from lib.core.common import banner
-    from lib.core.common import checkIntegrity
     from lib.core.common import checkPipedInput
+    from lib.core.common import checkSums
     from lib.core.common import createGithubIssue
     from lib.core.common import dataToStdout
     from lib.core.common import extractRegexResult
@@ -144,20 +144,16 @@ def main():
     """
 
     try:
-        # 在没有对 URL 进行发包/探测的时候 sqlmap 会先对一些环境、依赖、变量来做一些初始化的处理
-        # 位于 sqlmap-1.8/lib/core/patch.py 防止一些bug出现
         dirtyPatches()
         resolveCrossReferences()
         checkEnvironment()
-        # 模块初始化
         setPaths(modulePath())
-        # 打印页面提示
         banner()
 
         # Store original command line options for possible later restoration
-        args = cmdLineParser() #所有参数就在这里了
+        args = cmdLineParser()
         cmdLineOptions.update(args.__dict__ if hasattr(args, "__dict__") else args)
-        initOptions(cmdLineOptions) # 解析命令行参数
+        initOptions(cmdLineOptions)
 
         if checkPipedInput():
             conf.batch = True
@@ -272,7 +268,7 @@ def main():
         print()
         errMsg = unhandledExceptionMessage()
         excMsg = traceback.format_exc()
-        valid = checkIntegrity()
+        valid = checkSums()
 
         os._exitcode = 255
 
@@ -441,7 +437,7 @@ def main():
             raise SystemExit
 
         elif any(_ in errMsg for _ in (": 9.9.9#",)):
-            errMsg = "LOL :)"
+            errMsg = "LOL xD"
             logger.critical(errMsg)
             raise SystemExit
 
@@ -452,7 +448,7 @@ def main():
             raise SystemExit
 
         elif valid is False:
-            errMsg = "code integrity check failed (turning off automatic issue creation). "
+            errMsg = "code checksum failed (turning off automatic issue creation). "
             errMsg += "You should retrieve the latest development version from official GitHub "
             errMsg += "repository at '%s'" % GIT_PAGE
             logger.critical(errMsg)
@@ -610,7 +606,6 @@ def main():
             conf.disableBanner = True
             main()
 
-# 入口，一切的开始
 if __name__ == "__main__":
     try:
         main()
