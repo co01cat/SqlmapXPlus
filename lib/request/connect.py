@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2024 sqlmap developers (https://sqlmap.org/)
+Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 """
 
@@ -281,7 +281,6 @@ class Connect(object):
         cookie = kwargs.get("cookie", None)
         ua = kwargs.get("ua", None) or conf.agent
         referer = kwargs.get("referer", None) or conf.referer
-        host = kwargs.get("host", None) or conf.host
         direct_ = kwargs.get("direct", False)
         multipart = kwargs.get("multipart", None)
         silent = kwargs.get("silent", False)
@@ -298,10 +297,10 @@ class Connect(object):
         finalCode = kwargs.get("finalCode", False)
         chunked = kwargs.get("chunked", False) or conf.chunked
 
-        start = time.time()
-
         if isinstance(conf.delay, (int, float)) and conf.delay > 0:
             time.sleep(conf.delay)
+
+        start = time.time()
 
         threadData = getCurrentThreadData()
         with kb.locks.request:
@@ -915,12 +914,6 @@ class Connect(object):
                 raise SqlmapConnectionException(warnMsg)
 
         finally:
-            if isinstance(page, six.binary_type):
-                if HTTP_HEADER.CONTENT_TYPE in (responseHeaders or {}) and not re.search(TEXT_CONTENT_TYPE_REGEX, responseHeaders[HTTP_HEADER.CONTENT_TYPE]):
-                    page = six.text_type(page, errors="ignore")
-                else:
-                    page = getUnicode(page)
-
             for function in kb.postprocessFunctions:
                 try:
                     page, responseHeaders, code = function(page, responseHeaders, code)
@@ -928,6 +921,12 @@ class Connect(object):
                     errMsg = "error occurred while running postprocess "
                     errMsg += "function '%s' ('%s')" % (function.__name__, getSafeExString(ex))
                     raise SqlmapGenericException(errMsg)
+
+            if isinstance(page, six.binary_type):
+                if HTTP_HEADER.CONTENT_TYPE in (responseHeaders or {}) and not re.search(TEXT_CONTENT_TYPE_REGEX, responseHeaders[HTTP_HEADER.CONTENT_TYPE]):
+                    page = six.text_type(page, errors="ignore")
+                else:
+                    page = getUnicode(page)
 
             for _ in (getattr(conn, "redcode", None), code):
                 if _ is not None and _ in conf.abortCode:
@@ -1184,7 +1183,7 @@ class Connect(object):
                 if match:
                     retVal = re.sub(r"(?i)%s" % re.escape(match.group(0)), ("%s=%s" % (parameter, newValue)).replace('\\', r'\\'), paramString)
                 else:
-                    match = re.search(r"(%s[\"']:[\"'])([^\"']+)" % re.escape(parameter), paramString, re.I)
+                    match = re.search(r"(%s[\"']\s*:\s*[\"'])([^\"']*)" % re.escape(parameter), paramString, re.I)
                     if match:
                         retVal = re.sub(r"(?i)%s" % re.escape(match.group(0)), "%s%s" % (match.group(1), newValue), paramString)
 
@@ -1368,18 +1367,18 @@ class Connect(object):
 
             for variable in list(variables.keys()):
                 if unsafeVariableNaming(variable) != variable:
-                    value = variables[variable]
+                    entry = variables[variable]
                     del variables[variable]
-                    variables[unsafeVariableNaming(variable)] = value
+                    variables[unsafeVariableNaming(variable)] = entry
 
             uri = variables["uri"]
             cookie = variables["cookie"]
 
-            for name, value in variables.items():
-                if name != "__builtins__" and originals.get(name, "") != value:
-                    if isinstance(value, (int, float, six.string_types, six.binary_type)):
+            for name, entry in variables.items():
+                if name != "__builtins__" and originals.get(name, "") != entry:
+                    if isinstance(entry, (int, float, six.string_types, six.binary_type)):
                         found = False
-                        value = getUnicode(value, UNICODE_ENCODING)
+                        entry = getUnicode(entry, UNICODE_ENCODING)
 
                         if kb.postHint == POST_HINT.MULTIPART:
                             boundary = "--%s" % re.search(r"boundary=([^\s]+)", contentType).group(1)
@@ -1397,7 +1396,7 @@ class Connect(object):
                                             found = True
                                             first = match.group(0)
                                             second = part[len(first):]
-                                            second = re.sub(r"(?s).+?(\r?\n?\-*\Z)", r"%s\g<1>" % re.escape(value), second)
+                                            second = re.sub(r"(?s).+?(\r?\n?\-*\Z)", r"%s\g<1>" % re.escape(entry), second)
                                             parts[i] = "%s%s" % (first, second)
                                 post = boundary.join(parts)
 
@@ -1405,10 +1404,10 @@ class Connect(object):
                             if kb.postHint in (POST_HINT.XML, POST_HINT.SOAP):
                                 if re.search(r"<%s\b" % re.escape(name), post):
                                     found = True
-                                    post = re.sub(r"(?s)(<%s\b[^>]*>)(.*?)(</%s)" % (re.escape(name), re.escape(name)), r"\g<1>%s\g<3>" % value.replace('\\', r'\\'), post)
+                                    post = re.sub(r"(?s)(<%s\b[^>]*>)(.*?)(</%s)" % (re.escape(name), re.escape(name)), r"\g<1>%s\g<3>" % entry.replace('\\', r'\\'), post)
                                 elif re.search(r"\b%s>" % re.escape(name), post):
                                     found = True
-                                    post = re.sub(r"(?s)(\b%s>)(.*?)(</[^<]*\b%s>)" % (re.escape(name), re.escape(name)), r"\g<1>%s\g<3>" % value.replace('\\', r'\\'), post)
+                                    post = re.sub(r"(?s)(\b%s>)(.*?)(</[^<]*\b%s>)" % (re.escape(name), re.escape(name)), r"\g<1>%s\g<3>" % entry.replace('\\', r'\\'), post)
 
                             elif kb.postHint in (POST_HINT.JSON, POST_HINT.JSON_LIKE):
                                 match = re.search(r"['\"]%s['\"]:" % re.escape(name), post)
@@ -1418,31 +1417,31 @@ class Connect(object):
                                     match = re.search(r"(%s%s%s:\s*)(\d+|%s[^%s]*%s)" % (quote, re.escape(name), quote, quote, quote, quote), post)
                                     if match:
                                         found = True
-                                        post = post.replace(match.group(0), "%s%s" % (match.group(1), value if value.isdigit() else "%s%s%s" % (match.group(0)[0], value, match.group(0)[0])))
+                                        post = post.replace(match.group(0), "%s%s" % (match.group(1), entry if entry.isdigit() else "%s%s%s" % (match.group(0)[0], entry, match.group(0)[0])))
                                     post = post.replace(BOUNDARY_BACKSLASH_MARKER, "\\%s" % quote)
 
                             regex = r"\b(%s)\b([^\w]+)(\w+)" % re.escape(name)
                             if not found and re.search(regex, (post or "")):
                                 found = True
-                                post = re.sub(regex, r"\g<1>\g<2>%s" % value.replace('\\', r'\\'), post)
+                                post = re.sub(regex, r"\g<1>\g<2>%s" % entry.replace('\\', r'\\'), post)
 
                         regex = r"((\A|%s)%s=).+?(%s|\Z)" % (re.escape(delimiter), re.escape(name), re.escape(delimiter))
                         if not found and re.search(regex, (post or "")):
                             found = True
-                            post = re.sub(regex, r"\g<1>%s\g<3>" % value.replace('\\', r'\\'), post)
+                            post = re.sub(regex, r"\g<1>%s\g<3>" % entry.replace('\\', r'\\'), post)
 
                         if re.search(regex, (get or "")):
                             found = True
-                            get = re.sub(regex, r"\g<1>%s\g<3>" % value.replace('\\', r'\\'), get)
+                            get = re.sub(regex, r"\g<1>%s\g<3>" % entry.replace('\\', r'\\'), get)
 
                         if re.search(regex, (query or "")):
                             found = True
-                            uri = re.sub(regex.replace(r"\A", r"\?"), r"\g<1>%s\g<3>" % value.replace('\\', r'\\'), uri)
+                            uri = re.sub(regex.replace(r"\A", r"\?"), r"\g<1>%s\g<3>" % entry.replace('\\', r'\\'), uri)
 
                         regex = r"((\A|%s\s*)%s=).+?(%s|\Z)" % (re.escape(conf.cookieDel or DEFAULT_COOKIE_DELIMITER), re.escape(name), re.escape(conf.cookieDel or DEFAULT_COOKIE_DELIMITER))
                         if re.search(regex, (cookie or "")):
                             found = True
-                            cookie = re.sub(regex, r"\g<1>%s\g<3>" % value.replace('\\', r'\\'), cookie)
+                            cookie = re.sub(regex, r"\g<1>%s\g<3>" % entry.replace('\\', r'\\'), cookie)
 
                         if not found:
                             if post is not None:
@@ -1450,13 +1449,13 @@ class Connect(object):
                                     match = re.search(r"['\"]", post)
                                     if match:
                                         quote = match.group(0)
-                                        post = re.sub(r"\}\Z", "%s%s}" % (',' if re.search(r"\w", post) else "", "%s%s%s:%s" % (quote, name, quote, value if value.isdigit() else "%s%s%s" % (quote, value, quote))), post)
+                                        post = re.sub(r"\}\Z", "%s%s}" % (',' if re.search(r"\w", post) else "", "%s%s%s:%s" % (quote, name, quote, entry if entry.isdigit() else "%s%s%s" % (quote, entry, quote))), post)
                                 else:
-                                    post += "%s%s=%s" % (delimiter, name, value)
+                                    post += "%s%s=%s" % (delimiter, name, entry)
                             elif get is not None:
-                                get += "%s%s=%s" % (delimiter, name, value)
+                                get += "%s%s=%s" % (delimiter, name, entry)
                             elif cookie is not None:
-                                cookie += "%s%s=%s" % (conf.cookieDel or DEFAULT_COOKIE_DELIMITER, name, value)
+                                cookie += "%s%s=%s" % (conf.cookieDel or DEFAULT_COOKIE_DELIMITER, name, entry)
 
         if not conf.skipUrlEncode:
             get = urlencode(get, limit=True)
@@ -1483,8 +1482,8 @@ class Connect(object):
                 dataToStdout(warnMsg)
 
                 while len(kb.responseTimes[kb.responseTimeMode]) < MIN_TIME_RESPONSES:
-                    value = kb.responseTimePayload.replace(RANDOM_INTEGER_MARKER, str(randomInt(6))).replace(RANDOM_STRING_MARKER, randomStr()) if kb.responseTimePayload else kb.responseTimePayload
-                    Connect.queryPage(value=value, content=True, raise404=False)
+                    _ = kb.responseTimePayload.replace(RANDOM_INTEGER_MARKER, str(randomInt(6))).replace(RANDOM_STRING_MARKER, randomStr()) if kb.responseTimePayload else kb.responseTimePayload
+                    Connect.queryPage(value=_, content=True, raise404=False)
                     dataToStdout('.')
 
                 dataToStdout(" (done)\n")
